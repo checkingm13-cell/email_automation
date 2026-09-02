@@ -1,0 +1,156 @@
+### 1. Health Check
+GET http://localhost:3000/api/health HTTP/1.1
+
+### 2. Create Template
+POST http://localhost:3000/api/templates HTTP/1.1
+Content-Type: application/json
+
+{
+  "journal_id": 1,
+  "template_name": "IJAR Form 1",
+  "form_number": "Form 1",
+  "subject": "Your IJAR Submission",
+  "html_content": "<p>Hello {{Name}}, here is your form.</p>",
+  "text_content": "Hello {{Name}}, here is your form.",
+  "status": "active"
+}
+
+### 3. Test Duplicate
+POST http://localhost:3000/api/templates HTTP/1.1
+Content-Type: application/json
+
+{
+  "journal_id": 1,
+  "template_name": "IJAR Form 1",
+  "form_number": "Duplicate Test",
+  "subject": "This should fail",
+  "html_content": "test",
+  "text_content": "test"
+}
+
+### 4. Get All Templates
+GET http://localhost:3000/api/templates HTTP/1.1
+
+### 5. Get Single Template
+GET http://localhost:3000/api/templates/1 HTTP/1.1
+
+### 6. Update Template
+PUT http://localhost:3000/api/templates/1 HTTP/1.1
+Content-Type: application/json
+
+{
+  "template_name": "IJAR Form 1 - Updated",
+  "subject": "Updated Subject Line"
+}
+
+### 7. Delete Template
+DELETE http://localhost:3000/api/templates/1 HTTP/1.1
+
+### 8. Verify Deletion (Should return 404)
+GET http://localhost:3000/api/templates/1 HTTP/1.1
+
+### Create Real PARIPEX Invitation Template
+POST http://localhost:3000/api/templates HTTP/1.1
+Content-Type: application/json
+
+{
+  "journal_id": 1,
+  "template_name": "PARIPEX-Invitation",
+  "form_number": null,
+  "subject": "International Peer-Reviewed Journal | UGC CARE Listed",
+  "html_content": "<p>Dear {{Name}},</p><p>Do you have a research manuscript ready for publication consideration?</p><p>The Paripex Indian Journal of Research (PARIPEX) welcomes original research, review articles, case studies and other scholarly contributions.</p><p>PARIPEX follows a peer-reviewed publication process and may be considered by academic authors seeking publication relevant to NMC and UGC requirements.</p><p>If your paper is ready, you can begin the submission process below.</p><p><a href='https://www.worldwidejournals.com/paripex/recent_issue.php' style='background-color: #0056b3; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;'>Begin Your Submission</a></p><p>Thank you for considering PARIPEX for your research.</p><p>Best regards,<br>Editorial Team<br>Paripex Indian Journal of Research (PARIPEX)</p><hr style='margin-top: 30px;'><p style='font-size: 12px; color: #888;'>Click here to unsubscribe</p>",
+  "text_content": "Dear {{Name}},\n\nDo you have a research manuscript ready for publication consideration?\n\nThe Paripex Indian Journal of Research (PARIPEX) welcomes original research, review articles, case studies and other scholarly contributions.\n\nPARIPEX follows a peer-reviewed publication process and may be considered by academic authors seeking publication relevant to NMC and UGC requirements.\n\nIf your paper is ready, you can begin the submission process below:\nhttps://www.worldwidejournals.com/paripex/recent_issue.php\n\nThank you for considering PARIPEX for your research.\n\nBest regards,\nEditorial Team\nParipex Indian Journal of Research (PARIPEX)\n\n---\nClick here to unsubscribe",
+  "status": "active"
+}
+### Create a Benign Test Template
+POST http://localhost:3000/api/templates HTTP/1.1
+Content-Type: application/json
+
+{
+  "journal_id": 1,
+  "template_name": "Simple-Test",
+  "form_number": null,
+  "subject": "Quick API Test - Please Ignore",
+  "html_content": "<p>Hi {{Name}},</p><p>This is just a technical test to verify our Node.js Gmail API integration is working. No action is required.</p><p>Best,<br>Dev Team</p>",
+  "text_content": "Hi {{Name}},\n\nThis is just a technical test to verify our Node.js Gmail API integration is working. No action is required.\n\nBest,\nDev Team",
+  "status": "active"
+}
+### 1. Ensure Google Sheet is Registered (Run once)
+POST http://localhost:3000/api/google-sheets HTTP/1.1
+Content-Type: application/json
+
+{
+  "sheet_name": "September Researchers",
+  "spreadsheet_id": "1th9yiyDeKHIIB381KAT4vRpQElFMDoJpZ0dMjnQICJY",
+  "worksheet_name": "Sheet1",
+  "status": "active"
+}
+
+### 2. Create a Test Campaign (Use the ID returned from step 1 for google_sheet_id, e.g., 1)
+POST http://localhost:3000/api/campaigns HTTP/1.1
+Content-Type: application/json
+
+{
+  "campaign_name": "PARIPEX September Batch 1",
+  "google_sheet_id": 1,
+  "scheduled_at": "2026-09-02 15:00:00",
+  "status": "scheduled",
+  "rate_limit_per_minute": 10
+}
+### ==========================================
+### GOOGLE SHEETS API
+### ==========================================
+
+### 1. Register a Google Sheet
+POST http://localhost:3000/api/google-sheets HTTP/1.1
+Content-Type: application/json
+
+{
+  "sheet_name": "September Researchers",
+  "spreadsheet_id": "1th9yiyDeKHIIB381KAT4vRpQElFMDoJpZ0dMjnQICJY",
+  "worksheet_name": "Sheet1",
+  "status": "active"
+}
+
+### 2. Get All Sheets
+GET http://localhost:3000/api/google-sheets HTTP/1.1
+
+### ==========================================
+### CAMPAIGNS API
+### ==========================================
+
+### 3. Create a Campaign (Use the ID from step 1 for google_sheet_id)
+POST http://localhost:3000/api/campaigns HTTP/1.1
+Content-Type: application/json
+
+{
+  "campaign_name": "PARIPEX September Batch 2",
+  "google_sheet_id": 1,
+  "scheduled_at": "2026-09-02 16:00:00",
+  "rate_limit_per_minute": 10
+}
+
+### 4. Get All Campaigns
+GET http://localhost:3000/api/campaigns HTTP/1.1
+
+### Create a New Campaign (Batch 2)
+POST http://localhost:3000/api/campaigns HTTP/1.1
+Content-Type: application/json
+
+{
+  "campaign_name": "PARIPEX September Batch 3 (Test Unsubscribe) with proper unsubscribe link",
+  "google_sheet_id": 1,
+  "scheduled_at": "2026-09-02 17:00:00",
+  "rate_limit_per_minute": 10
+}
+### Create Campaign with Specific Sender
+POST http://localhost:3000/api/campaigns HTTP/1.1
+Content-Type: application/json
+
+{
+  "campaign_name": "PARIPEX Batch from Editor A",
+  "google_sheet_id": 1,
+  "sender_email": "editor.a@worldwidejournals.co.in",
+  "scheduled_at": "2026-09-03 10:00:00",
+  "rate_limit_per_minute": 10
+}
