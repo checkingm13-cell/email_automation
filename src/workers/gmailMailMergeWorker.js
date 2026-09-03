@@ -180,7 +180,7 @@ class GmailMailMergeWorker {
             await firstDropdown.click();
             await page.waitForTimeout(1500);
 
-            const emailOption = page.locator(`li[role="option"][data-value="${emailCol}"], li[role="option"]:has-text("@${emailCol}")`).first();
+            const emailOption = page.locator(`li[role="option"][data-value*="${emailCol}" i], li[role="option"]:has-text("@${emailCol}" i), li[role="option"][data-value*="email" i], li[role="option"]:has-text("email" i)`).first();
             await emailOption.waitFor({ state: 'visible', timeout: 5000 });
             await emailOption.click();
             await page.waitForTimeout(1500);
@@ -190,7 +190,7 @@ class GmailMailMergeWorker {
             if (await nameDropdown.isVisible({ timeout: 3000 }).catch(() => false)) {
                 await nameDropdown.click();
                 await page.waitForTimeout(1500);
-                const nameOption = page.locator('li[role="option"][data-value="name"], li[role="option"]:has-text("@name")').first();
+                const nameOption = page.locator(`li[role="option"][data-value*="name" i], li[role="option"]:has-text("@name" i), li[role="option"]:has-text("name" i)`).first();
                 if (await nameOption.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await nameOption.click();
                     await page.waitForTimeout(1500);
