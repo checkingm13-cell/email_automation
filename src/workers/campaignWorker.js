@@ -1,7 +1,7 @@
 require('dotenv').config();
 const db = require('../config/db');
 const GoogleSheetsService = require('../services/googleSheetsService');
-const GmailService = require('../services/gmailService');
+const EmailService = require('../services/emailService');
 const UnsubscribeService = require('../services/unsubscribeService');
 
 // Helper: Async Pool for controlled parallel processing
@@ -95,9 +95,26 @@ class CampaignWorker {
                     const template = templateRows[0];
 
                     // D. Generate Unsubscribe Token & URL
+                    // D. Generate Unsubscribe Token & Smart Dynamic URL
                     const token = await UnsubscribeService.generateToken(row.email, campaignId);
-                    const unsubscribeUrl = `${process.env.BASE_URL}/unsubscribe/${token}`;
 
+                    // 1. Extract domain from the sender's email (e.g., 'worldwidejournals.co.in' or 'gmail.com')
+                    const senderDomain = campaign.sender_email.split('@')[1];
+
+                    // 2. Get your actual app's domain from .env (e.g., 'worldwidejournals.co.in' or 'localhost')
+                    const appUrl = new URL(process.env.BASE_URL);
+                    const appDomain = appUrl.hostname;
+                    const protocol = appUrl.protocol.replace(':', ''); // 'https' or 'http'
+
+                    // 3. CRITICAL: If the sender is a free public email (gmail, yahoo, etc.), 
+                    // we MUST use your app's actual domain, otherwise the link will be dead.
+                    // If it's a custom business domain, we use the sender's domain for perfect branding.
+                    const freeEmailProviders = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com'];
+                    const finalDomain = freeEmailProviders.includes(senderDomain) ? appDomain : senderDomain;
+
+                    const unsubscribeUrl = `${protocol}://${finalDomain}/unsubscribe/${token}`;
+
+                    console.log(`   🔗 Unsubscribe URL: ${unsubscribeUrl}`);
                     // E. Personalize Content (Name only; Footer is auto-injected by EmailService)
                     const rawHtml = template.html_content || '<p>Hello {{Name}}</p>';
                     const rawText = template.text_content || 'Hello {{Name}}';
@@ -117,7 +134,7 @@ class CampaignWorker {
                         textContent: finalText,
                         recipientName: row.name,
                         senderEmail: campaign.sender_email,
-                        senderRefreshToken: campaign.sender_refresh_token, // <-- CRITICAL: Enables Personal Gmail OAuth2
+                        senderRefreshToken: campaign.sender_refresh_token,
                         unsubscribeUrl: unsubscribeUrl,
                     });
 
