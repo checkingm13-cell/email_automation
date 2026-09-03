@@ -12,7 +12,9 @@ class CampaignService {
             recipient_column = 'email',
             subject,
             body_template,
-            scheduled_at
+            scheduled_at,
+            sender_email,
+            chrome_profile
         } = data;
 
         if (!spreadsheet_title && !spreadsheet_url) {
@@ -38,15 +40,17 @@ class CampaignService {
 
         const [result] = await db.query(
             `INSERT INTO campaigns 
-            (spreadsheet_title, spreadsheet_url, recipient_column, subject, body_template, scheduled_at, status) 
-            VALUES (?, ?, ?, ?, ?, ?, 'PENDING')`,
+            (spreadsheet_title, spreadsheet_url, recipient_column, subject, body_template, scheduled_at, sender_email, chrome_profile, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
             [
                 spreadsheet_title ? spreadsheet_title.trim() : null,
                 spreadsheet_url ? spreadsheet_url.trim() : null,
                 recipient_column ? recipient_column.trim() : 'email',
                 subject.trim(),
                 body_template,
-                scheduledDate
+                scheduledDate,
+                sender_email ? sender_email.trim() : null,
+                chrome_profile ? chrome_profile.trim() : null
             ]
         );
 
