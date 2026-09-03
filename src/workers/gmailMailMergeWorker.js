@@ -202,18 +202,25 @@ class GmailMailMergeWorker {
             console.log(`[Campaign #${campaignId}] ✅ Linked spreadsheet successfully.`);
             await page.waitForTimeout(1500);
 
-            // 8. Fill Subject Line
+            // 8. Fill Subject Line with event dispatching
             console.log(`[Campaign #${campaignId}] ✍️ Setting Subject...`);
             const subjectInput = page.locator('input[name="subjectbox"], input[aria-label="Subject"]').first();
             await subjectInput.waitFor({ state: 'visible', timeout: 8000 });
+            await subjectInput.click();
             await subjectInput.fill(campaign.subject);
+            await subjectInput.dispatchEvent('input');
+            await subjectInput.dispatchEvent('blur');
+            await page.waitForTimeout(500);
 
-            // 9. Fill Message Body (Template with @tags)
+            // 9. Fill Message Body (Template with @tags) with event dispatching
             console.log(`[Campaign #${campaignId}] ✍️ Populating Body Template...`);
             const bodyEditor = page.locator('div[aria-label="Message Body"], div[role="textbox"][aria-label*="Body"]').first();
             await bodyEditor.waitFor({ state: 'visible', timeout: 8000 });
-            await bodyEditor.focus();
+            await bodyEditor.click();
             await bodyEditor.fill(campaign.body_template);
+            await bodyEditor.dispatchEvent('input');
+            await bodyEditor.dispatchEvent('blur');
+            await page.waitForTimeout(1000);
 
             // 10. Trigger Continue
             console.log(`[Campaign #${campaignId}] 🚀 Clicking Continue button...`);
@@ -244,10 +251,18 @@ class GmailMailMergeWorker {
                 await page.waitForTimeout(2000);
             }
 
-            // 13. Confirm "Send all" in the "Ready to send" Modal
-            console.log(`[Campaign #${campaignId}] 📢 Locating purple 'Send all' button in Ready to send modal...`);
+            // 13. Wait for "Ready to send" Modal to fully validate
+            console.log(`[Campaign #${campaignId}] ⏳ Waiting for Gmail to validate recipients in Ready to send modal...`);
+            const readyToSendHeader = page.locator('text=/ready to send/i').first();
+            await readyToSendHeader.waitFor({ state: 'visible', timeout: 15000 });
+
             const sendAllBtn = page.getByRole('button', { name: /send all/i }).or(page.locator('button:has-text("Send all")')).first();
             await sendAllBtn.waitFor({ state: 'visible', timeout: 10000 });
+
+            // 14. Human pause: allow Gmail backend to finalize spreadsheet batch token binding
+            console.log(`[Campaign #${campaignId}] ⏳ Finalizing batch validation (giving Gmail backend time to bind sheet tokens)...`);
+            await page.waitForTimeout(3000);
+
             console.log(`[Campaign #${campaignId}] 🚀 Confirming Mail Merge 'Send all'...`);
             await sendAllBtn.click();
 
