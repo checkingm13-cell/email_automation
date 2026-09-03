@@ -10,7 +10,17 @@ class GmailMailMergeWorker {
      */
     static async executeCampaign(campaign) {
         const campaignId = campaign.id;
-        const userDataDir = path.resolve(process.cwd(), 'chrome-profile');
+        let profileFolder = 'chrome-profile';
+        if (campaign.chrome_profile) {
+            profileFolder = campaign.chrome_profile;
+        } else if (campaign.sender_email) {
+            const prefix = campaign.sender_email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '_');
+            const candidate = `chrome-profile-${prefix}`;
+            if (fs.existsSync(path.resolve(process.cwd(), candidate))) {
+                profileFolder = candidate;
+            }
+        }
+        const userDataDir = path.resolve(process.cwd(), profileFolder);
         const screenshotDir = path.resolve(process.cwd(), 'logs', 'screenshots');
 
         if (!fs.existsSync(screenshotDir)) {

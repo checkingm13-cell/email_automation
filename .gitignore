@@ -15,4 +15,4 @@ test-hybrid-oauth.js
 oauth-client.json
 credentials.json
 tree.txt
-chrome-profile/
+chrome-profile*/

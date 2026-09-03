@@ -6,14 +6,14 @@
 module.exports = {
     // Navigation & Readiness
     inboxUrl: 'https://mail.google.com/mail/u/0/#inbox',
-    composeButton: 'button:has-text("Compose"), div[gh="cm"]',
+    composeButton: 'div[role="button"]:has-text("Compose"), button:has-text("Compose"), div.T-I-KE, div[gh="cm"]',
     composeDialog: 'div[role="dialog"]',
 
     // Mail Merge Menu & Toggle
     mailMergeIcon: 'span.Sz.brj, [aria-label*="mail merge" i], [data-tooltip*="mail merge" i]',
-    menuPopup: 'div[role="menu"]',
-    mailMergeCheckbox: 'div[role="menu"] [role="checkbox"][aria-label*="mail merge" i]',
-    addFromSpreadsheetItem: 'div[role="menu"] [role="menuitem"]:has-text("Add from a spreadsheet")',
+    menuPopup: 'div[role="menu"]:has-text("Mail merge"), div[role="menu"]:has([role="checkbox"])',
+    mailMergeCheckbox: '[role="checkbox"][aria-label*="mail merge" i]',
+    addFromSpreadsheetItem: '[role="menuitem"]:has-text("Add from a spreadsheet")',
 
     // Google Drive Picker Frame
     driveSearchInput: 'input[aria-label*="Search"], input[placeholder*="Search"], input[type="text"]',
