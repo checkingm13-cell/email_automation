@@ -133,12 +133,12 @@ class GmailMailMergeWorker {
                 throw new Error('Google Drive picker frame not found');
             }
 
-            // Determine search term: Drive accepts document title or full URL
+            // Determine search term: prefer spreadsheet title if provided, else URL
             let searchTerm = '';
-            if (campaign.spreadsheet_url) {
-                searchTerm = campaign.spreadsheet_url.trim();
-            } else if (campaign.spreadsheet_title) {
+            if (campaign.spreadsheet_title) {
                 searchTerm = campaign.spreadsheet_title.trim();
+            } else if (campaign.spreadsheet_url) {
+                searchTerm = campaign.spreadsheet_url.trim();
             }
 
             console.log(`[Campaign #${campaignId}] 🔍 Searching for spreadsheet with query: "${searchTerm}"`);
