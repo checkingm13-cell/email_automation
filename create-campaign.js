@@ -8,28 +8,35 @@
 const db = require('./src/config/db');
 
 async function createCampaign() {
-    // Default campaign configuration
-    // Edit these fields or pass them dynamically:
     const campaignConfig = {
-        spreadsheet_title: 'newproject', // Title of Google Sheet in Drive
-        spreadsheet_url: 'https://docs.google.com/spreadsheets/d/1A8Gx8s9mWSOop6t7d_BXa5kPKSV7Jj0MGrytjtwxu6c/edit?usp=sharing',
-        sender_email: 'editorial@researchworldwidejournals.com', // Active sender
-        chrome_profile: 'chrome-profile-editorial', // Profile directory
+        spreadsheet_title: '03-09-26 001', // Exact Drive Title verified
+        spreadsheet_url: 'https://docs.google.com/spreadsheets/d/1mAtQBl3RQD1PlHpiUBZjHeyjvbd-4yt2nHjSG6nW52g/edit?usp=sharing',
+        sender_email: 'editorial@researchworldwidejournals.com',
+        chrome_profile: 'chrome-profile-editorial',
         recipient_column: 'email',
-        subject: 'Official Announcement - Research World Wide Journals',
+        subject: 'Invitation for Research Publication – International Journal of Scientific Research (IJSR)',
         body_template: `Dear Author,
 
-We are pleased to invite your submission to our upcoming journal volume.
+We would like to invite you to consider the International Journal of Scientific Research (IJSR) for your research publication.
 
-You can reply directly to this email if you have any questions.
+IJSR welcomes original research papers, review articles, case studies and other scholarly contributions from researchers and academics.
+
+The journal follows a peer-reviewed publication process and provides an academic platform relevant to researchers considering publication requirements associated with NMC and UGC.
+
+If your manuscript is ready, you can submit it through our online portal.
+
+Submit Your Paper: https://www.worldwidejournals.com
+
+We look forward to receiving your research.
 
 Best regards,
-Editorial Team`,
-        scheduled_at: new Date() // Start immediately or schedule for future
+Editorial Team
+International Journal of Scientific Research (IJSR)`,
+        scheduled_at: new Date()
     };
 
     console.log('\n======================================================');
-    console.log('📝 Creating New Campaign');
+    console.log('📝 Creating Campaign for IJSR');
     console.log(`   Subject:     "${campaignConfig.subject}"`);
     console.log(`   Sheet:       "${campaignConfig.spreadsheet_title}"`);
     console.log(`   Sender:      "${campaignConfig.sender_email}"`);
