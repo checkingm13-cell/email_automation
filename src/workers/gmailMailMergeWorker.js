@@ -236,7 +236,15 @@ class GmailMailMergeWorker {
                 await page.waitForTimeout(2000);
             }
 
-            // 12. Confirm "Send all" in the "Ready to send" Modal
+            // 12. Handle one-time "Help fight junk emails" onboarding popup if present
+            const gotItBtn = page.getByRole('button', { name: /got it/i }).or(page.locator('button:has-text("Got it"), div[role="button"]:has-text("Got it")')).first();
+            if (await gotItBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
+                console.log(`[Campaign #${campaignId}] ℹ️ Dismissing 'Help fight junk emails' prompt via 'Got it'...`);
+                await gotItBtn.click();
+                await page.waitForTimeout(2000);
+            }
+
+            // 13. Confirm "Send all" in the "Ready to send" Modal
             console.log(`[Campaign #${campaignId}] 📢 Locating purple 'Send all' button in Ready to send modal...`);
             const sendAllBtn = page.getByRole('button', { name: /send all/i }).or(page.locator('button:has-text("Send all")')).first();
             await sendAllBtn.waitFor({ state: 'visible', timeout: 10000 });
