@@ -25,7 +25,7 @@ The journal follows a peer-reviewed publication process and provides an academic
 
 If your manuscript is ready, you can submit it through our online portal.
 
-Submit Your Paper: https://www.worldwidejournals.com
+Submit Your Paper : https://www.worldwidejournals.com/paripex/page/p/upload-your-article
 
 We look forward to receiving your research.
 
