@@ -207,22 +207,30 @@ class GmailMailMergeWorker {
             console.log(`[Campaign #${campaignId}] ✅ Linked spreadsheet successfully.`);
             await page.waitForTimeout(3000);
 
-            // 8. Fill Subject Line with event dispatching
+            // 8. Fill Subject Line (sanitized to avoid unparsed plain-text merge tags)
             console.log(`[Campaign #${campaignId}] ✍️ Setting Subject...`);
+            const cleanSubject = (campaign.subject || 'Announcement from Editorial Team').replace(/@\w+/g, '').trim();
             const subjectInput = page.locator('input[name="subjectbox"], input[aria-label="Subject"]').first();
             await subjectInput.waitFor({ state: 'visible', timeout: 8000 });
             await subjectInput.click();
-            await subjectInput.fill(campaign.subject);
+            await subjectInput.fill(cleanSubject);
             await subjectInput.dispatchEvent('input');
             await subjectInput.dispatchEvent('blur');
             await page.waitForTimeout(1500);
 
-            // 9. Fill Message Body (Template with @tags) with event dispatching
-            console.log(`[Campaign #${campaignId}] ✍️ Populating Body Template...`);
+            // 9. Fill Message Body (sanitized to avoid unparsed plain-text merge tags)
+            console.log(`[Campaign #${campaignId}] ✍️ Populating Body Template (clean of plain-text @tags)...`);
+            const cleanBody = (campaign.body_template || 'Hello,\n\nWe would like to share an update with you.\n\nBest regards,\nEditorial Team')
+                .replace(/@name/gi, 'Author')
+                .replace(/@firstname/gi, 'Author')
+                .replace(/@email/gi, '')
+                .replace(/@\w+/g, '')
+                .trim();
+
             const bodyEditor = page.locator('div[aria-label="Message Body"], div[role="textbox"][aria-label*="Body"]').first();
             await bodyEditor.waitFor({ state: 'visible', timeout: 8000 });
             await bodyEditor.click();
-            await bodyEditor.fill(campaign.body_template);
+            await bodyEditor.fill(cleanBody);
             await bodyEditor.dispatchEvent('input');
             await bodyEditor.dispatchEvent('blur');
             await page.waitForTimeout(2500);
