@@ -24,8 +24,6 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "google-auth-library": "^11.0.2",
-    "googleapis": "^178.0.0",
     "mysql2": "^3.24.3",
     "node-cron": "^4.6.0",
     "playwright": "^1.62.1"
