@@ -74,19 +74,21 @@ class GmailMailMergeWorker {
                 waitUntil: 'domcontentloaded', 
                 timeout: 45000 
             });
+            await page.waitForLoadState('networkidle').catch(() => {});
+            await page.waitForTimeout(3000);
 
             // 2. Wait for Gmail UI to be fully interactive (Compose button visible)
             console.log(`[Campaign #${campaignId}] ⏳ Waiting for Gmail UI to be ready...`);
-            const composeBtn = page.getByRole('button', { name: /compose/i }).or(page.locator('div[gh="cm"]')).first();
+            const composeBtn = page.getByRole('button', { name: /compose/i }).or(page.locator('div[gh="cm"], div.T-I-KE')).first();
             await composeBtn.waitFor({ state: 'visible', timeout: 45000 });
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(2000);
 
             // 3. Open Compose Dialog
             console.log(`[Campaign #${campaignId}] ✍️ Clicking Compose button...`);
             await composeBtn.click();
             const composeDialog = page.locator('div[role="dialog"]').filter({ hasText: /new message|to/i }).first();
             await composeDialog.waitFor({ state: 'visible', timeout: 20000 });
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(2500);
 
             // 4. Toggle Mail Merge
             console.log(`[Campaign #${campaignId}] 🔗 Opening Mail Merge popup...`);
@@ -94,13 +96,13 @@ class GmailMailMergeWorker {
             await mailMergeBtn.waitFor({ state: 'visible', timeout: 10000 });
             await mailMergeBtn.focus();
             await page.keyboard.press('Enter');
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(2000);
 
             // Fallback click if menu is not visible yet
-            let menu = page.getByRole('menu');
+            let menu = page.locator('div[role="menu"]:has-text("Mail merge"), div[role="menu"]:has([role="checkbox"])').first();
             if (!(await menu.isVisible().catch(() => false))) {
                 await mailMergeBtn.click();
-                await page.waitForTimeout(1500);
+                await page.waitForTimeout(2000);
             }
             await menu.waitFor({ state: 'visible', timeout: 10000 });
 
@@ -111,7 +113,7 @@ class GmailMailMergeWorker {
             const isChecked = await checkbox.getAttribute('aria-checked');
             if (isChecked !== 'true') {
                 await checkbox.click();
-                await page.waitForTimeout(1500);
+                await page.waitForTimeout(2000);
             }
 
             // 6. Select "Add from a spreadsheet"
@@ -123,7 +125,7 @@ class GmailMailMergeWorker {
             // 5. Handle Google Drive Sheet Picker Dialog / iframe
             console.log(`[Campaign #${campaignId}] ⏳ Waiting for Google Drive Picker to load...`);
             let pickerFrame = null;
-            for (let attempt = 0; attempt < 15; attempt++) {
+            for (let attempt = 0; attempt < 20; attempt++) {
                 pickerFrame = page.frames().find(f => f.url().includes('picker') || f.url().includes('drive'));
                 if (pickerFrame) break;
                 await page.waitForTimeout(1000);
@@ -132,6 +134,7 @@ class GmailMailMergeWorker {
             if (!pickerFrame) {
                 throw new Error('Google Drive picker frame not found');
             }
+            await page.waitForTimeout(2500);
 
             // Determine search term: prefer spreadsheet title if provided, else URL
             let searchTerm = '';
@@ -145,50 +148,52 @@ class GmailMailMergeWorker {
 
             const searchInput = pickerFrame.locator('input[aria-label*="Search"], input[placeholder*="Search"], input[type="text"]').first();
             await searchInput.waitFor({ state: 'visible', timeout: 15000 });
+            await searchInput.click();
             await searchInput.fill(searchTerm);
             await searchInput.press('Enter');
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(4000);
 
             // Locate matching file card in Drive Picker
             console.log(`[Campaign #${campaignId}] 📄 Selecting file card from search results...`);
             const fileItem = pickerFrame.locator('div[role="row"], div[role="option"], div[role="gridcell"]').first();
             await fileItem.waitFor({ state: 'visible', timeout: 15000 });
             await fileItem.click();
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(2000);
 
             // Click "Insert" / "Select" button
             const selectBtn = pickerFrame.locator('button:has-text("Insert"), button:has-text("Select"), div[role="button"]:has-text("Insert"), button[name="ok"]').first();
             await selectBtn.waitFor({ state: 'visible', timeout: 8000 });
             await selectBtn.click();
 
-            await page.waitForTimeout(2500);
+            await page.waitForTimeout(4000);
 
             // 7. Handle "Finish linking spreadsheet" Column Mapping Dialog
             const finishLinkingHeading = page.locator('text="Finish linking spreadsheet"').first();
             await finishLinkingHeading.waitFor({ state: 'visible', timeout: 15000 });
             console.log(`[Campaign #${campaignId}] 📋 Configuring column mappings in Finish linking dialog...`);
+            await page.waitForTimeout(1500);
             
             // Map EMAIL column
             const emailCol = (campaign.recipient_column || 'email').toLowerCase();
             const firstDropdown = page.locator('div.rHGeGc-aPP78e').first();
             await firstDropdown.waitFor({ state: 'visible', timeout: 5000 });
             await firstDropdown.click();
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(1500);
 
             const emailOption = page.locator(`li[role="option"][data-value="${emailCol}"], li[role="option"]:has-text("@${emailCol}")`).first();
             await emailOption.waitFor({ state: 'visible', timeout: 5000 });
             await emailOption.click();
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(1500);
 
             // Map FIRST NAME column if available
             const nameDropdown = page.locator('div.rHGeGc-aPP78e').nth(1);
             if (await nameDropdown.isVisible({ timeout: 3000 }).catch(() => false)) {
                 await nameDropdown.click();
-                await page.waitForTimeout(1000);
+                await page.waitForTimeout(1500);
                 const nameOption = page.locator('li[role="option"][data-value="name"], li[role="option"]:has-text("@name")').first();
                 if (await nameOption.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await nameOption.click();
-                    await page.waitForTimeout(1000);
+                    await page.waitForTimeout(1500);
                 }
             }
 
@@ -200,7 +205,7 @@ class GmailMailMergeWorker {
             // Ensure Finish linking dialog is dismissed
             await finishLinkingHeading.waitFor({ state: 'hidden', timeout: 10000 });
             console.log(`[Campaign #${campaignId}] ✅ Linked spreadsheet successfully.`);
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(3000);
 
             // 8. Fill Subject Line with event dispatching
             console.log(`[Campaign #${campaignId}] ✍️ Setting Subject...`);
@@ -210,7 +215,7 @@ class GmailMailMergeWorker {
             await subjectInput.fill(campaign.subject);
             await subjectInput.dispatchEvent('input');
             await subjectInput.dispatchEvent('blur');
-            await page.waitForTimeout(500);
+            await page.waitForTimeout(1500);
 
             // 9. Fill Message Body (Template with @tags) with event dispatching
             console.log(`[Campaign #${campaignId}] ✍️ Populating Body Template...`);
@@ -220,14 +225,14 @@ class GmailMailMergeWorker {
             await bodyEditor.fill(campaign.body_template);
             await bodyEditor.dispatchEvent('input');
             await bodyEditor.dispatchEvent('blur');
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(2500);
 
             // 10. Trigger Continue
             console.log(`[Campaign #${campaignId}] 🚀 Clicking Continue button...`);
             const continueBtn = page.locator('button:has-text("Continue"), div[role="button"]:has-text("Continue")').first();
             await continueBtn.waitFor({ state: 'visible', timeout: 8000 });
             await continueBtn.click();
-            await page.waitForTimeout(2500);
+            await page.waitForTimeout(3500);
 
             // 11. Handle "Missing unsubscribe link" prompt if present
             const addLinkBtn = page.getByRole('button', { name: 'Add link' }).or(page.locator('button:has-text("Add link"), div[role="button"]:has-text("Add link")')).first();
@@ -236,11 +241,11 @@ class GmailMailMergeWorker {
             if (await addLinkBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
                 console.log(`[Campaign #${campaignId}] ℹ️ Resolving missing unsubscribe prompt via 'Add link'...`);
                 await addLinkBtn.click();
-                await page.waitForTimeout(2000);
+                await page.waitForTimeout(2500);
             } else if (await ignoreBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
                 console.log(`[Campaign #${campaignId}] ℹ️ Dismissing missing unsubscribe prompt via 'Ignore'...`);
                 await ignoreBtn.click();
-                await page.waitForTimeout(2000);
+                await page.waitForTimeout(2500);
             }
 
             // 12. Handle one-time "Help fight junk emails" onboarding popup if present
@@ -248,7 +253,7 @@ class GmailMailMergeWorker {
             if (await gotItBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
                 console.log(`[Campaign #${campaignId}] ℹ️ Dismissing 'Help fight junk emails' prompt via 'Got it'...`);
                 await gotItBtn.click();
-                await page.waitForTimeout(2000);
+                await page.waitForTimeout(2500);
             }
 
             // 13. Wait for "Ready to send" Modal to fully validate
@@ -259,9 +264,9 @@ class GmailMailMergeWorker {
             const sendAllBtn = page.getByRole('button', { name: /send all/i }).or(page.locator('button:has-text("Send all")')).first();
             await sendAllBtn.waitFor({ state: 'visible', timeout: 10000 });
 
-            // 14. Human pause: allow Gmail backend to finalize spreadsheet batch token binding
-            console.log(`[Campaign #${campaignId}] ⏳ Finalizing batch validation (giving Gmail backend time to bind sheet tokens)...`);
-            await page.waitForTimeout(3000);
+            // 14. Generous human pause: allow Gmail backend to finalize spreadsheet batch token binding
+            console.log(`[Campaign #${campaignId}] ⏳ Finalizing batch validation (giving Gmail backend 6s to bind sheet tokens)...`);
+            await page.waitForTimeout(6000);
 
             console.log(`[Campaign #${campaignId}] 🚀 Confirming Mail Merge 'Send all'...`);
             await sendAllBtn.click();
