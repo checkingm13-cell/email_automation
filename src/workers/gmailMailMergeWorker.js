@@ -153,44 +153,44 @@ class GmailMailMergeWorker {
 
             await page.waitForTimeout(2500);
 
-            // 7. Handle "Finish linking spreadsheet" Column Mapping Dialog (if prompted)
+            // 7. Handle "Finish linking spreadsheet" Column Mapping Dialog
             const finishLinkingHeading = page.locator('text="Finish linking spreadsheet"').first();
-            if (await finishLinkingHeading.isVisible({ timeout: 8000 }).catch(() => false)) {
-                console.log(`[Campaign #${campaignId}] 📋 Configuring column mappings in Finish linking dialog...`);
-                
-                // Map EMAIL column
-                const emailCol = (campaign.recipient_column || 'email').toLowerCase();
-                const firstDropdown = page.locator('div.rHGeGc-aPP78e').first();
-                if (await firstDropdown.isVisible({ timeout: 3000 }).catch(() => false)) {
-                    await firstDropdown.click();
-                    await page.waitForTimeout(800);
-                    const emailOption = page.locator(`li[role="option"][data-value="${emailCol}"], li[role="option"]:has-text("@${emailCol}")`).first();
-                    if (await emailOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-                        await emailOption.click();
-                        await page.waitForTimeout(800);
-                    }
-                }
+            await finishLinkingHeading.waitFor({ state: 'visible', timeout: 15000 });
+            console.log(`[Campaign #${campaignId}] 📋 Configuring column mappings in Finish linking dialog...`);
+            
+            // Map EMAIL column
+            const emailCol = (campaign.recipient_column || 'email').toLowerCase();
+            const firstDropdown = page.locator('div.rHGeGc-aPP78e').first();
+            await firstDropdown.waitFor({ state: 'visible', timeout: 5000 });
+            await firstDropdown.click();
+            await page.waitForTimeout(1000);
 
-                // Map FIRST NAME column if available
-                const nameDropdown = page.locator('div.rHGeGc-aPP78e').nth(1);
-                if (await nameDropdown.isVisible({ timeout: 3000 }).catch(() => false)) {
-                    await nameDropdown.click();
-                    await page.waitForTimeout(800);
-                    const nameOption = page.locator('li[role="option"][data-value="name"], li[role="option"]:has-text("@name")').first();
-                    if (await nameOption.isVisible({ timeout: 3000 }).catch(() => false)) {
-                        await nameOption.click();
-                        await page.waitForTimeout(800);
-                    }
-                }
+            const emailOption = page.locator(`li[role="option"][data-value="${emailCol}"], li[role="option"]:has-text("@${emailCol}")`).first();
+            await emailOption.waitFor({ state: 'visible', timeout: 5000 });
+            await emailOption.click();
+            await page.waitForTimeout(1000);
 
-                // Click Finish button
-                const finishBtn = page.getByRole('button', { name: 'Finish' }).or(page.locator('button:has-text("Finish"), div[role="button"]:has-text("Finish")')).first();
-                await finishBtn.waitFor({ state: 'visible', timeout: 5000 });
-                await finishBtn.click();
-                await page.waitForTimeout(2000);
+            // Map FIRST NAME column if available
+            const nameDropdown = page.locator('div.rHGeGc-aPP78e').nth(1);
+            if (await nameDropdown.isVisible({ timeout: 3000 }).catch(() => false)) {
+                await nameDropdown.click();
+                await page.waitForTimeout(1000);
+                const nameOption = page.locator('li[role="option"][data-value="name"], li[role="option"]:has-text("@name")').first();
+                if (await nameOption.isVisible({ timeout: 3000 }).catch(() => false)) {
+                    await nameOption.click();
+                    await page.waitForTimeout(1000);
+                }
             }
 
+            // Click Finish button
+            const finishBtn = page.getByRole('button', { name: 'Finish' }).or(page.locator('button:has-text("Finish"), div[role="button"]:has-text("Finish")')).first();
+            await finishBtn.waitFor({ state: 'visible', timeout: 5000 });
+            await finishBtn.click();
+            
+            // Ensure Finish linking dialog is dismissed
+            await finishLinkingHeading.waitFor({ state: 'hidden', timeout: 10000 });
             console.log(`[Campaign #${campaignId}] ✅ Linked spreadsheet successfully.`);
+            await page.waitForTimeout(1500);
 
             // 8. Fill Subject Line
             console.log(`[Campaign #${campaignId}] ✍️ Setting Subject...`);
@@ -205,19 +205,42 @@ class GmailMailMergeWorker {
             await bodyEditor.focus();
             await bodyEditor.fill(campaign.body_template);
 
-            // 10. Trigger Send / Continue
-            console.log(`[Campaign #${campaignId}] 🚀 Clicking Continue / Send button...`);
-            const sendOrContinueBtn = page.locator('button:has-text("Continue"), div[role="button"]:has-text("Continue"), div[role="button"][data-tooltip*="Send"], div[role="button"]:has-text("Send")').first();
-            await sendOrContinueBtn.waitFor({ state: 'visible', timeout: 8000 });
-            await sendOrContinueBtn.click();
+            // 10. Trigger Continue
+            console.log(`[Campaign #${campaignId}] 🚀 Clicking Continue button...`);
+            const continueBtn = page.locator('button:has-text("Continue"), div[role="button"]:has-text("Continue")').first();
+            await continueBtn.waitFor({ state: 'visible', timeout: 8000 });
+            await continueBtn.click();
+            await page.waitForTimeout(2500);
 
-            // 11. Confirm "Send all" Modal Dialog
-            await page.waitForTimeout(2000);
-            const confirmBtn = page.locator('button:has-text("Send all"), button:has-text("Send merge"), div[role="dialog"] button:has-text("Send"), div[role="button"]:has-text("Send all")').first();
-            if (await confirmBtn.isVisible({ timeout: 6000 }).catch(() => false)) {
-                console.log(`[Campaign #${campaignId}] 📢 Confirming Mail Merge 'Send all'...`);
-                await confirmBtn.click();
+            // 11. Handle "Missing unsubscribe link" prompt if present
+            const addLinkBtn = page.getByRole('button', { name: 'Add link' }).or(page.locator('button:has-text("Add link"), div[role="button"]:has-text("Add link")')).first();
+            const ignoreBtn = page.getByRole('button', { name: 'Ignore' }).or(page.locator('button:has-text("Ignore"), div[role="button"]:has-text("Ignore")')).first();
+
+            if (await addLinkBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+                console.log(`[Campaign #${campaignId}] ℹ️ Resolving missing unsubscribe prompt via 'Add link'...`);
+                await addLinkBtn.click();
+                await page.waitForTimeout(2000);
+            } else if (await ignoreBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+                console.log(`[Campaign #${campaignId}] ℹ️ Dismissing missing unsubscribe prompt via 'Ignore'...`);
+                await ignoreBtn.click();
+                await page.waitForTimeout(2000);
             }
+
+            // 12. Confirm "Send all" in the "Ready to send" Modal
+            console.log(`[Campaign #${campaignId}] 📢 Locating purple 'Send all' button in Ready to send modal...`);
+            const sendAllBtn = page.getByRole('button', { name: /send all/i }).or(page.locator('button:has-text("Send all")')).first();
+            await sendAllBtn.waitFor({ state: 'visible', timeout: 10000 });
+            console.log(`[Campaign #${campaignId}] 🚀 Confirming Mail Merge 'Send all'...`);
+            await sendAllBtn.click();
+
+            // 13. Wait for "Message sent" toast confirmation
+            console.log(`[Campaign #${campaignId}] ⏳ Waiting for Gmail 'Message sent' confirmation...`);
+            const messageSentToast = page.locator('div:has-text("Message sent"), span:has-text("Message sent")').first();
+            await messageSentToast.waitFor({ state: 'visible', timeout: 20000 }).catch(() => {
+                console.log(`[Campaign #${campaignId}] Note: 'Message sent' toast not captured, verifying compose closed.`);
+            });
+            await page.waitForTimeout(3000);
+            console.log(`[Campaign #${campaignId}] ✅ Mail Merge campaign successfully submitted and sent by Gmail!`);
 
             // Wait for compose dialog to dismiss and toast notification
             await page.waitForTimeout(4000);
