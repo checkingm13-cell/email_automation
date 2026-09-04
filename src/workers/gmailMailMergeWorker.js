@@ -12,14 +12,30 @@ class GmailMailMergeWorker {
      */
     static async executeCampaign(campaign) {
         const campaignId = campaign.id;
-        let profileFolder = 'chrome-profile';
-        if (campaign.chrome_profile) {
-            profileFolder = campaign.chrome_profile;
-        } else if (campaign.sender_email) {
-            const prefix = campaign.sender_email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '_');
-            const candidate = `chrome-profile-${prefix}`;
-            if (fs.existsSync(path.resolve(process.cwd(), candidate))) {
-                profileFolder = candidate;
+        let profileFolder = campaign.chrome_profile || 'chrome-profile';
+        if (campaign.sender_email && !campaign.chrome_profile) {
+            try {
+                const db = require('../config/db');
+                const [profiles] = await db.query(
+                    'SELECT profile_folder, status FROM sender_profiles WHERE email = ?',
+                    [campaign.sender_email]
+                );
+                if (profiles && profiles.length > 0 && profiles[0].profile_folder) {
+                    profileFolder = profiles[0].profile_folder;
+                    db.query('UPDATE sender_profiles SET last_used_at = NOW() WHERE email = ?', [campaign.sender_email]).catch(() => {});
+                } else {
+                    const prefix = campaign.sender_email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '_');
+                    const candidate = `chrome-profile-${prefix}`;
+                    if (fs.existsSync(path.resolve(process.cwd(), candidate))) {
+                        profileFolder = candidate;
+                    }
+                }
+            } catch (err) {
+                const prefix = campaign.sender_email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '_');
+                const candidate = `chrome-profile-${prefix}`;
+                if (fs.existsSync(path.resolve(process.cwd(), candidate))) {
+                    profileFolder = candidate;
+                }
             }
         }
         const userDataDir = path.resolve(process.cwd(), profileFolder);

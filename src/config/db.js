@@ -52,7 +52,8 @@ if (process.env.DATABASE_URL) {
         const isInsert = upper.startsWith('INSERT');
         const hasReturning = /\bRETURNING\b/i.test(trimmed);
 
-        let queryText = convertPlaceholders(trimmed);
+        const cleanedSql = trimmed.replace(/;+\s*$/, '');
+        let queryText = convertPlaceholders(cleanedSql);
         if (isInsert && !hasReturning) {
             queryText += ' RETURNING id';
         }

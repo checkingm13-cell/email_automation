@@ -91,6 +91,17 @@ app.get('/api/db-check', async (req, res) => {
     }
 });
 
+// Sender Profiles Route (Source of Truth from Supabase)
+app.get('/api/sender-profiles', async (req, res) => {
+    try {
+        const db = req.app.get('db') || require('./config/db');
+        const [rows] = await db.query('SELECT id, email, display_name, profile_folder, daily_quota, sent_today, status FROM sender_profiles ORDER BY id ASC');
+        res.json({ success: true, data: rows });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // CI/CD Authenticated Webhook Deploy Route (Zero SSH Keys in GitHub)
 app.post('/api/deploy', (req, res) => {
     const secret = req.headers['x-deploy-secret'];

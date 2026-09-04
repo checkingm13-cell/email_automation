@@ -325,7 +325,23 @@
             return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]);
         }
 
+        async function fetchSenderProfiles() {
+            try {
+                const res = await fetch('/api/sender-profiles');
+                const json = await res.json();
+                if (json.success && json.data && json.data.length > 0) {
+                    const select = document.getElementById('sender_email');
+                    select.innerHTML = json.data.map(p => `
+                        <option value="${escapeHtml(p.email)}">${escapeHtml(p.email)} (${escapeHtml(p.display_name || p.profile_folder)})</option>
+                    `).join('');
+                }
+            } catch (err) {
+                console.warn('Could not load sender profiles:', err);
+            }
+        }
+
         fetchSystemStatus();
+        fetchSenderProfiles();
         fetchCampaigns();
         setInterval(() => {
             fetchSystemStatus();
