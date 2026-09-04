@@ -123,6 +123,9 @@
     </div>
 
     <script>
+        let campaignErrors = {};
+        let isSchedulerActive = true;
+
         const statusColors = {
             'PENDING': 'bg-amber-950/60 text-amber-300 border-amber-800/60',
             'RUNNING': 'bg-blue-950/60 text-blue-300 border-blue-800/60 animate-pulse',
@@ -241,8 +244,6 @@
             }
         });
 
-        let isSchedulerActive = true;
-
         async function fetchSystemStatus() {
             try {
                 const res = await fetch('/api/system/status');
@@ -306,8 +307,6 @@
                 alert('Failed to toggle scheduler: ' + err.message);
             }
         }
-
-        let campaignErrors = {};
 
         function showErrorModal(id) {
             const err = campaignErrors[id] || 'No error details recorded.';
