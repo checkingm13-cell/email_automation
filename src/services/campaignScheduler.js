@@ -42,6 +42,16 @@ class CampaignScheduler {
     }
 
     /**
+     * Returns current scheduler state
+     */
+    getStatus() {
+        return {
+            active: !!this.cronJob,
+            isProcessing: this.isProcessing
+        };
+    }
+
+    /**
      * Fails any stale RUNNING jobs on server startup to prevent duplicate sending
      */
     async recoverStaleOnBoot() {

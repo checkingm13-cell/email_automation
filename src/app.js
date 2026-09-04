@@ -9,6 +9,8 @@ app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(require('path').join(__dirname, '../public')));
 
+const campaignScheduler = require('./services/campaignScheduler');
+
 // Health Check Route
 app.get('/api/health', (req, res) => {
     res.status(200).json({
@@ -18,10 +20,63 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// System Status & Diagnostic Route
+app.get('/api/system/status', async (req, res) => {
+    const db = req.app.get('db') || require('./config/db');
+    let dbStatus = 'DISCONNECTED';
+    let pendingCount = 0;
+    let runningCount = 0;
+
+    try {
+        const [testRows] = await db.query('SELECT 1 + 1 AS solution');
+        if (testRows && testRows.length > 0) {
+            dbStatus = 'CONNECTED';
+        }
+        const [countRows] = await db.query(`
+            SELECT 
+                SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) AS pending,
+                SUM(CASE WHEN status = 'RUNNING' THEN 1 ELSE 0 END) AS running
+            FROM campaigns
+        `);
+        if (countRows && countRows.length > 0) {
+            pendingCount = Number(countRows[0].pending) || 0;
+            runningCount = Number(countRows[0].running) || 0;
+        }
+    } catch (err) {
+        dbStatus = 'ERROR: ' + err.message;
+    }
+
+    res.json({
+        engine: 'ONLINE',
+        environment: process.env.NODE_ENV || 'local-production',
+        outboundRoute: process.env.PROXY_SERVER ? 'Proxy' : 'Direct Broadband',
+        database: dbStatus,
+        scheduler: campaignScheduler.getStatus(),
+        counts: {
+            pending: pendingCount,
+            running: runningCount
+        },
+        uptimeSeconds: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Scheduler Controls
+app.post('/api/scheduler/pause', (req, res) => {
+    campaignScheduler.stop();
+    res.json({ success: true, message: 'Scheduler paused', scheduler: campaignScheduler.getStatus() });
+});
+
+app.post('/api/scheduler/resume', (req, res) => {
+    campaignScheduler.start();
+    res.json({ success: true, message: 'Scheduler resumed', scheduler: campaignScheduler.getStatus() });
+});
+
 // Database Check Route (Phase 1 verification)
 app.get('/api/db-check', async (req, res) => {
     try {
-        const [rows] = await req.app.get('db').query('SELECT 1 + 1 AS solution');
+        const db = req.app.get('db') || require('./config/db');
+        const [rows] = await db.query('SELECT 1 + 1 AS solution');
         res.status(200).json({
             status: 'OK',
             message: 'Database is responsive',

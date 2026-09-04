@@ -23,6 +23,29 @@
             </div>
         </header>
 
+        <!-- System Diagnostics & Operations Bar -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 text-xs">
+            <div class="flex items-center justify-between px-3 py-2 bg-slate-900/60 rounded-lg border border-slate-800">
+                <span class="text-slate-400">Engine:</span>
+                <span id="statEngine" class="font-bold text-emerald-400">ONLINE</span>
+            </div>
+            <div class="flex items-center justify-between px-3 py-2 bg-slate-900/60 rounded-lg border border-slate-800">
+                <span class="text-slate-400">Database:</span>
+                <span id="statDb" class="font-semibold text-slate-300">Checking...</span>
+            </div>
+            <div class="flex items-center justify-between px-3 py-2 bg-slate-900/60 rounded-lg border border-slate-800">
+                <span class="text-slate-400">Scheduler:</span>
+                <div class="flex items-center gap-1.5">
+                    <span id="statScheduler" class="font-semibold text-slate-300">Checking...</span>
+                    <button id="btnToggleScheduler" onclick="toggleScheduler()" class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700">Toggle</button>
+                </div>
+            </div>
+            <div class="flex items-center justify-between px-3 py-2 bg-slate-900/60 rounded-lg border border-slate-800">
+                <span class="text-slate-400">Outbound:</span>
+                <span id="statRoute" class="font-medium text-emerald-300">Direct Home IP</span>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Form: Create Campaign -->
             <section class="lg:col-span-1 bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl">
@@ -214,13 +237,83 @@
             }
         });
 
+        let isSchedulerActive = true;
+
+        async function fetchSystemStatus() {
+            try {
+                const res = await fetch('/api/system/status');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                // Engine
+                document.getElementById('statEngine').textContent = data.engine || 'ONLINE';
+                document.getElementById('statEngine').className = 'font-bold text-emerald-400';
+
+                // DB Status
+                const dbEl = document.getElementById('statDb');
+                if (data.database === 'CONNECTED') {
+                    dbEl.textContent = 'CONNECTED';
+                    dbEl.className = 'font-semibold text-emerald-400';
+                } else {
+                    dbEl.textContent = data.database;
+                    dbEl.className = 'font-semibold text-rose-400';
+                }
+
+                // Scheduler Status
+                const schedEl = document.getElementById('statScheduler');
+                const btnToggle = document.getElementById('btnToggleScheduler');
+                isSchedulerActive = data.scheduler?.active ?? true;
+                const isProcessing = data.scheduler?.isProcessing;
+
+                if (isProcessing) {
+                    schedEl.textContent = 'BUSY';
+                    schedEl.className = 'font-semibold text-blue-400 animate-pulse';
+                } else if (isSchedulerActive) {
+                    schedEl.textContent = 'ACTIVE';
+                    schedEl.className = 'font-semibold text-emerald-400';
+                    btnToggle.textContent = 'Pause';
+                    btnToggle.className = 'px-2 py-0.5 rounded text-[10px] font-medium bg-amber-950/60 border border-amber-800 text-amber-300 hover:bg-amber-900/60';
+                } else {
+                    schedEl.textContent = 'PAUSED';
+                    schedEl.className = 'font-semibold text-amber-400';
+                    btnToggle.textContent = 'Resume';
+                    btnToggle.className = 'px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-950/60 border border-emerald-800 text-emerald-300 hover:bg-emerald-900/60';
+                }
+
+                // Outbound Route
+                const routeEl = document.getElementById('statRoute');
+                routeEl.textContent = data.outboundRoute || 'Direct Broadband';
+
+            } catch (err) {
+                console.error('Status fetch error:', err);
+                document.getElementById('statEngine').textContent = 'OFFLINE';
+                document.getElementById('statEngine').className = 'font-bold text-rose-500';
+            }
+        }
+
+        async function toggleScheduler() {
+            const endpoint = isSchedulerActive ? '/api/scheduler/pause' : '/api/scheduler/resume';
+            try {
+                const res = await fetch(endpoint, { method: 'POST' });
+                if (res.ok) {
+                    fetchSystemStatus();
+                }
+            } catch (err) {
+                alert('Failed to toggle scheduler: ' + err.message);
+            }
+        }
+
         function escapeHtml(str) {
             if (!str) return '';
             return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]);
         }
 
+        fetchSystemStatus();
         fetchCampaigns();
-        setInterval(fetchCampaigns, 5000);
+        setInterval(() => {
+            fetchSystemStatus();
+            fetchCampaigns();
+        }, 5000);
     </script>
 </body>
 </html>
