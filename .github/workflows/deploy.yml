@@ -1,0 +1,25 @@
+name: Deploy to Oracle VPS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Trigger VPS Webhook Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Webhook
+        env:
+          DEPLOY_SECRET: ${{ secrets.DEPLOY_SECRET }}
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_WEBHOOK_URL" ]; then
+            echo "⚠️ DEPLOY_WEBHOOK_URL not configured yet in GitHub Secrets. Skipping ping."
+            exit 0
+          fi
+          echo "🚀 Pinging production webhook at $DEPLOY_WEBHOOK_URL..."
+          curl -f -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-deploy-secret: $DEPLOY_SECRET" \
+            "$DEPLOY_WEBHOOK_URL/api/deploy" || echo "⚠️ Webhook ping finished."

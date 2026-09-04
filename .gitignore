@@ -16,3 +16,6 @@ oauth-client.json
 credentials.json
 tree.txt
 chrome-profile*/
+*-state.json
+auth-*.json
+check-last-run.js

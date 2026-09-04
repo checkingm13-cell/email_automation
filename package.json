@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "\"# email_automation\" \r \"# email_automation\"",
   "main": "server.js",
+  "engines": {
+    "node": ">=20.0.0 <25.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",

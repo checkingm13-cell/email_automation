@@ -88,16 +88,38 @@ async function initSession() {
     console.log('3. When finished, press ENTER here to verify the session.');
     console.log('------------------------------------------------------\n');
 
-    // Wait for user confirmation in terminal via readline
+    // Wait for user confirmation: check URL change, trigger file, or stdin
+    console.log('⏳ Waiting for login... (Will auto-detect once login & 2FA completes)');
     await new Promise((resolve) => {
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-        rl.question('Press [ENTER] after completing login & 2FA in VNC... ', () => {
-            rl.close();
-            resolve();
-        });
+        const interval = setInterval(async () => {
+            try {
+                const url = page.url();
+                if (url.includes('myaccount.google.com') || 
+                    url.includes('mail.google.com') || 
+                    (url.includes('accounts.google.com') && !url.includes('/signin/') && !url.includes('/v3/signin'))) {
+                    console.log(`\n🎉 Login detected! Current URL: ${url}`);
+                    clearInterval(interval);
+                    resolve();
+                } else if (fs.existsSync('/tmp/session_done')) {
+                    console.log('\n🔔 Trigger file /tmp/session_done detected!');
+                    try { fs.unlinkSync('/tmp/session_done'); } catch (_) {}
+                    clearInterval(interval);
+                    resolve();
+                }
+            } catch (_) {}
+        }, 2000);
+
+        if (process.stdin.isTTY) {
+            const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout
+            });
+            rl.question('Or press [ENTER] after completing login & 2FA in VNC... ', () => {
+                rl.close();
+                clearInterval(interval);
+                resolve();
+            });
+        }
     });
 
     console.log('\n📬 Navigating to https://mail.google.com/ to verify authentication...');

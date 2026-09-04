@@ -1,6 +1,8 @@
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
+const stealthScript = require('../utils/stealthScripts');
+const { humanClick } = require('../utils/humanBehavior');
 
 class GmailMailMergeWorker {
     /**
@@ -45,23 +47,38 @@ class GmailMailMergeWorker {
         try {
             console.log(`[Campaign #${campaignId}] 🌐 Launching browser context from ${userDataDir}...`);
 
+            // 1. Lock Buster: remove stale SingletonLock / SingletonSocket from prior crashes
+            const lockFile = path.join(userDataDir, 'SingletonLock');
+            const socketFile = path.join(userDataDir, 'SingletonSocket');
+            if (fs.existsSync(lockFile)) try { fs.unlinkSync(lockFile); } catch (_) {}
+            if (fs.existsSync(socketFile)) try { fs.unlinkSync(socketFile); } catch (_) {}
+
             const proxyConfig = process.env.PROXY_SERVER ? { server: process.env.PROXY_SERVER } : undefined;
             const launchOpts = {
                 headless: false,
                 channel: 'chrome',
                 proxy: proxyConfig,
+                viewport: { width: 1280, height: 720 },
                 args: [
-                    '--start-maximized',
                     '--no-sandbox',
-                    '--disable-blink-features=AutomationControlled'
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-software-rasterizer',
+                    '--disable-background-timer-throttling',
+                    '--disable-renderer-backgrounding',
+                    '--disable-blink-features=AutomationControlled',
+                    '--js-flags=--max-old-space-size=256'
                 ],
-                viewport: null
+                ignoreDefaultArgs: ['--enable-automation']
             };
 
             context = await chromium.launchPersistentContext(userDataDir, launchOpts).catch(async () => {
                 delete launchOpts.channel;
                 return await chromium.launchPersistentContext(userDataDir, launchOpts);
             });
+
+            // 2. Early Stealth Injection at Context level
+            await context.addInitScript(stealthScript);
 
             page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
@@ -81,8 +98,8 @@ class GmailMailMergeWorker {
             await page.waitForTimeout(2000);
 
             // 3. Open Compose Dialog
-            console.log(`[Campaign #${campaignId}] ✍️ Clicking Compose button...`);
-            await composeBtn.click();
+            console.log(`[Campaign #${campaignId}] ✍️ Clicking Compose button (Humanized)...`);
+            await humanClick(page, composeBtn);
             const composeDialog = page.locator('div[role="dialog"]').filter({ hasText: /new message|to/i }).first();
             await composeDialog.waitFor({ state: 'visible', timeout: 20000 });
             await page.waitForTimeout(2500);

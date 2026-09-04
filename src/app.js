@@ -36,6 +36,35 @@ app.get('/api/db-check', async (req, res) => {
     }
 });
 
+// CI/CD Authenticated Webhook Deploy Route (Zero SSH Keys in GitHub)
+app.post('/api/deploy', (req, res) => {
+    const secret = req.headers['x-deploy-secret'];
+    const expected = process.env.DEPLOY_SECRET;
+    
+    if (!expected || !secret || secret !== expected) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid or missing deployment secret' });
+    }
+    
+    res.status(200).json({ 
+        status: 'OK', 
+        message: 'Deployment triggered successfully',
+        timestamp: new Date().toISOString()
+    });
+    
+    // Execute git pull & PM2 reload asynchronously
+    const { exec } = require('child_process');
+    const path = require('path');
+    const repoRoot = path.resolve(__dirname, '..');
+    
+    exec('git pull origin main && npm install --production && pm2 reload ecosystem.config.js', { cwd: repoRoot }, (err, stdout, stderr) => {
+        if (err) {
+            console.error('❌ [Deploy Webhook Error]:', err.message);
+        } else {
+            console.log('✅ [Deploy Webhook Success]:\n', stdout);
+        }
+    });
+});
+
 // Placeholder for future routes
 // Register Routes
 app.use('/api/templates', require('./routes/templateRoutes'));
