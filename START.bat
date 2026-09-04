@@ -36,13 +36,13 @@ if not exist "chrome-profile-editorial" mkdir "chrome-profile-editorial"
 :: 4. Disable QuickEdit mode so console mouse clicks do not freeze Node.js
 powershell -NoProfile -Command "$t = Add-Type -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern IntPtr GetStdHandle(int n); [DllImport(\"kernel32.dll\")] public static extern bool GetConsoleMode(IntPtr h, out uint m); [DllImport(\"kernel32.dll\")] public static extern bool SetConsoleMode(IntPtr h, uint m);' -Name 'CK' -Namespace 'W32' -PassThru; $h = $t::GetStdHandle(-10); $m = 0; $t::GetConsoleMode($h, [ref]$m); $t::SetConsoleMode($h, $m -band -bnot 0x0040 -band -bnot 0x0020)" >nul 2>nul
 
-:: 5. Open browser after 2-second delay to ensure server is listening
-start /b cmd /c "timeout /t 2 /nobreak >nul && start http://localhost:3000"
-
-:: 6. Launch Application
+:: 5. Launch Application and open browser once ready
 echo Starting backend server on http://localhost:3000...
 echo Close this window to stop the service.
 echo.
+
+:: Open browser after 3.5s delay to ensure Express has bound port 3000
+start /b cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3000"
 
 node index.js
 pause
