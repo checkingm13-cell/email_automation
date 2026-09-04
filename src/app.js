@@ -20,15 +20,38 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+let cachedOutboundIp = null;
+let lastIpCheckTime = 0;
+
+async function resolveOutboundIp() {
+    const now = Date.now();
+    if (cachedOutboundIp && (now - lastIpCheckTime < 10 * 60 * 1000)) {
+        return cachedOutboundIp;
+    }
+    try {
+        const response = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(2500) });
+        const data = await response.json();
+        if (data && data.ip) {
+            cachedOutboundIp = data.ip;
+            lastIpCheckTime = now;
+            return cachedOutboundIp;
+        }
+    } catch (_) {}
+    return cachedOutboundIp || 'Direct (Broadband)';
+}
+
 // System Status & Diagnostic Route
 app.get('/api/system/status', async (req, res) => {
     const db = req.app.get('db') || require('./config/db');
     let dbStatus = 'DISCONNECTED';
+    let dbLatencyMs = null;
     let pendingCount = 0;
     let runningCount = 0;
 
+    const tStart = Date.now();
     try {
         const [testRows] = await db.query('SELECT 1 + 1 AS solution');
+        dbLatencyMs = Date.now() - tStart;
         if (testRows && testRows.length > 0) {
             dbStatus = 'CONNECTED';
         }
@@ -46,11 +69,62 @@ app.get('/api/system/status', async (req, res) => {
         dbStatus = 'ERROR: ' + err.message;
     }
 
+    let activeProfiles = [];
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const [profRows] = await db.query('SELECT id, email, display_name, profile_folder, daily_quota, sent_today, status, last_used_at FROM sender_profiles ORDER BY id ASC');
+        activeProfiles = (profRows || []).map(p => {
+            const folderPath = path.resolve(process.cwd(), p.profile_folder || 'chrome-profile');
+            const exists = fs.existsSync(folderPath);
+            const isLocked = exists && (fs.existsSync(path.join(folderPath, 'SingletonLock')) || fs.existsSync(path.join(folderPath, 'SingletonSocket')));
+            return {
+                id: p.id,
+                email: p.email,
+                displayName: p.display_name,
+                folder: p.profile_folder,
+                status: p.status,
+                dailyQuota: p.daily_quota,
+                sentToday: p.sent_today,
+                existsOnDisk: exists,
+                isLocked: isLocked,
+                lastUsedAt: p.last_used_at
+            };
+        });
+    } catch (e) {
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            activeProfiles = fs.readdirSync(process.cwd())
+                .filter(name => name.startsWith('chrome-profile') && fs.statSync(path.resolve(process.cwd(), name)).isDirectory())
+                .map(folder => {
+                    const folderPath = path.resolve(process.cwd(), folder);
+                    const isLocked = fs.existsSync(path.join(folderPath, 'SingletonLock')) || fs.existsSync(path.join(folderPath, 'SingletonSocket'));
+                    return {
+                        email: folder.replace('chrome-profile-', '').replace('chrome-profile', 'Default Profile'),
+                        folder: folder,
+                        existsOnDisk: true,
+                        isLocked: isLocked,
+                        status: isLocked ? 'BUSY' : 'READY'
+                    };
+                });
+        } catch (_) {}
+    }
+
+    const mem = process.memoryUsage();
+    const outboundIp = await resolveOutboundIp();
+
     res.json({
         engine: 'ONLINE',
+        nodeVersion: process.version,
+        platform: process.platform,
         environment: process.env.NODE_ENV || 'local-production',
-        outboundRoute: process.env.PROXY_SERVER ? 'Proxy' : 'Direct Broadband',
+        outboundRoute: process.env.PROXY_SERVER ? 'Proxy' : 'Direct Residential Broadband',
+        outboundIp,
         database: dbStatus,
+        dbLatencyMs,
+        activeProfiles,
+        memoryUsageMB: Math.round(mem.rss / (1024 * 1024)),
         scheduler: campaignScheduler.getStatus(),
         counts: {
             pending: pendingCount,

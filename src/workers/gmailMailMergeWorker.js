@@ -4,6 +4,19 @@ const fs = require('fs');
 const stealthScript = require('../utils/stealthScripts');
 const { humanClick } = require('../utils/humanBehavior');
 
+/**
+ * Extracts Google Sheet ID from full URL or returns raw ID
+ * e.g. https://docs.google.com/spreadsheets/d/1th9yiyDeKHIIB381KAT4vRpQElFMDoJpZ0dMjnQICJY/edit -> 1th9yiyDeKHIIB381KAT4vRpQElFMDoJpZ0dMjnQICJY
+ */
+function extractGoogleSheetId(input) {
+    if (!input) return null;
+    const str = String(input).trim();
+    const match = str.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/i) || str.match(/\/d\/([a-zA-Z0-9_-]+)/i);
+    if (match && match[1]) return match[1];
+    if (/^[a-zA-Z0-9_-]{25,}$/.test(str)) return str;
+    return null;
+}
+
 class GmailMailMergeWorker {
     /**
      * Executes the Gmail Native Mail Merge flow for a single campaign.
@@ -45,7 +58,8 @@ class GmailMailMergeWorker {
             fs.mkdirSync(screenshotDir, { recursive: true });
         }
 
-        const sheetIdentifier = campaign.spreadsheet_title || campaign.spreadsheet_url;
+        const extractedId = extractGoogleSheetId(campaign.spreadsheet_url) || extractGoogleSheetId(campaign.spreadsheet_title);
+        const sheetIdentifier = campaign.spreadsheet_title || extractedId || campaign.spreadsheet_url;
 
         console.log(`\n======================================================`);
         console.log(`🚀 [Campaign #${campaignId}] Starting Gmail Native Mail Merge Worker`);
@@ -53,6 +67,9 @@ class GmailMailMergeWorker {
         console.log(`   Spreadsheet:   "${sheetIdentifier}"`);
         if (campaign.spreadsheet_url) {
             console.log(`   URL:           "${campaign.spreadsheet_url}"`);
+        }
+        if (extractedId) {
+            console.log(`   Sheet ID:      "${extractedId}"`);
         }
         console.log(`   Recipient Col: "${campaign.recipient_column || 'email'}"`);
         console.log(`======================================================\n`);
@@ -166,26 +183,47 @@ class GmailMailMergeWorker {
             }
             await page.waitForTimeout(2500);
 
-            // Determine search term: prefer spreadsheet title if provided, else URL
+            // Determine search query for Drive Picker:
+            // Google Drive Picker supports searching directly by unique Google Sheet ID or title.
+            // When given https://docs.google.com/spreadsheets/d/1th9yiyDeKHIIB381KAT4vRpQElFMDoJpZ0dMjnQICJY/edit,
+            // extracting the ID '1th9yiyDeKHIIB381KAT4vRpQElFMDoJpZ0dMjnQICJY' allows direct, exact match.
+            const extractedSheetId = extractGoogleSheetId(campaign.spreadsheet_url) || extractGoogleSheetId(campaign.spreadsheet_title);
             let searchTerm = '';
-            if (campaign.spreadsheet_title) {
+
+            if (extractedSheetId) {
+                // Primary: Search by extracted unique Sheet ID
+                searchTerm = extractedSheetId;
+            } else if (campaign.spreadsheet_title && !campaign.spreadsheet_title.startsWith('http')) {
                 searchTerm = campaign.spreadsheet_title.trim();
             } else if (campaign.spreadsheet_url) {
                 searchTerm = campaign.spreadsheet_url.trim();
             }
 
-            console.log(`[Campaign #${campaignId}] 🔍 Searching for spreadsheet with query: "${searchTerm}"`);
+            console.log(`[Campaign #${campaignId}] 🔍 Searching for spreadsheet with query: "${searchTerm}"` + (extractedSheetId ? ` [Extracted Sheet ID: ${extractedSheetId}]` : ''));
 
             const searchInput = pickerFrame.locator('input[aria-label*="Search"], input[placeholder*="Search"], input[type="text"]').first();
             await searchInput.waitFor({ state: 'visible', timeout: 15000 });
             await searchInput.click();
             await searchInput.fill(searchTerm);
             await searchInput.press('Enter');
-            await page.waitForTimeout(4000);
+            await page.waitForTimeout(3500);
 
             // Locate matching file card in Drive Picker
-            console.log(`[Campaign #${campaignId}] 📄 Selecting file card from search results...`);
             const fileItem = pickerFrame.locator('div[role="row"], div[role="option"], div[role="gridcell"]').first();
+            let isFileVisible = await fileItem.isVisible({ timeout: 4000 }).catch(() => false);
+
+            // Fallback: If searched by ID and not found, but a title was provided, try title search
+            if (!isFileVisible && campaign.spreadsheet_title && campaign.spreadsheet_title.trim() !== searchTerm && !campaign.spreadsheet_title.startsWith('http')) {
+                const titleQuery = campaign.spreadsheet_title.trim();
+                console.log(`[Campaign #${campaignId}] ⚠️ File not found by ID. Retrying search with title: "${titleQuery}"...`);
+                await searchInput.click();
+                await searchInput.fill('');
+                await searchInput.fill(titleQuery);
+                await searchInput.press('Enter');
+                await page.waitForTimeout(3500);
+            }
+
+            console.log(`[Campaign #${campaignId}] 📄 Selecting file card from search results...`);
             await fileItem.waitFor({ state: 'visible', timeout: 15000 });
             await fileItem.click();
             await page.waitForTimeout(2000);

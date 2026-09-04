@@ -18,31 +18,38 @@
                 <p class="text-xs text-slate-400 mt-1">Zero-cost production dispatch portal &bull; Resident IP safe</p>
             </div>
             <div class="flex items-center gap-3 text-xs">
+                <button onclick="openHealthModal()" class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    System Health
+                </button>
                 <span class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">Port: 3000</span>
                 <span class="px-2.5 py-1 rounded bg-emerald-950/60 border border-emerald-700/50 text-emerald-300" id="liveIndicator">Auto-refresh (5s)</span>
             </div>
         </header>
 
         <!-- System Diagnostics & Operations Bar -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 text-xs">
+        <div onclick="openHealthModal()" class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 text-xs cursor-pointer hover:border-slate-600 transition" title="Click to view full System Health Diagnostics">
             <div class="flex items-center justify-between px-3 py-2 bg-slate-900/60 rounded-lg border border-slate-800">
                 <span class="text-slate-400">Engine:</span>
                 <span id="statEngine" class="font-bold text-emerald-400">ONLINE</span>
             </div>
             <div class="flex items-center justify-between px-3 py-2 bg-slate-900/60 rounded-lg border border-slate-800">
                 <span class="text-slate-400">Database:</span>
-                <span id="statDb" class="font-semibold text-slate-300">Checking...</span>
+                <div class="flex items-center gap-1">
+                    <span id="statDb" class="font-semibold text-slate-300">Checking...</span>
+                    <span id="statDbLatency" class="text-[10px] text-slate-500 font-mono hidden"></span>
+                </div>
             </div>
             <div class="flex items-center justify-between px-3 py-2 bg-slate-900/60 rounded-lg border border-slate-800">
                 <span class="text-slate-400">Scheduler:</span>
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
                     <span id="statScheduler" class="font-semibold text-slate-300">Checking...</span>
                     <button id="btnToggleScheduler" onclick="toggleScheduler()" class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700">Toggle</button>
                 </div>
             </div>
             <div class="flex items-center justify-between px-3 py-2 bg-slate-900/60 rounded-lg border border-slate-800">
                 <span class="text-slate-400">Outbound:</span>
-                <span id="statRoute" class="font-medium text-emerald-300">Direct Home IP</span>
+                <span id="statRoute" class="font-medium text-emerald-300 truncate max-w-[130px]">Direct Home IP</span>
             </div>
         </div>
 
@@ -63,13 +70,17 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Google Sheet URL</label>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-medium text-slate-300">Google Sheet URL</label>
+                            <span id="sheetIdBadge" class="hidden text-[10px] text-emerald-400 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800"></span>
+                        </div>
                         <input type="url" id="spreadsheet_url" required placeholder="https://docs.google.com/spreadsheets/d/.../edit" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+                        <p id="sheetHelperText" class="text-[10px] text-slate-400 mt-1">Paste any Google Sheet URL; Sheet ID is extracted automatically for direct Drive search.</p>
                     </div>
 
                     <div>
                         <label class="block text-xs font-medium text-slate-300 mb-1">Sheet Title (Optional Filter)</label>
-                        <input type="text" id="spreadsheet_title" placeholder="e.g. 03-09-26 001" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+                        <input type="text" id="spreadsheet_title" placeholder="Optional title (or leave blank to search directly by Sheet ID)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
                     </div>
 
                     <div>
@@ -80,7 +91,19 @@
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <label class="text-xs font-medium text-slate-300">Body Template</label>
-                            <span class="text-[10px] text-slate-400">Tokens: @name, @email</span>
+                            <span id="templateNotice" class="text-[10px] text-emerald-400 hidden">✓ Template Applied</span>
+                        </div>
+                        <!-- 1-Click Quick Template Pills -->
+                        <div class="grid grid-cols-3 gap-1.5 mb-2">
+                            <button type="button" onclick="loadTemplate('cfp')" class="px-2 py-1.5 rounded text-[11px] font-medium bg-indigo-950/70 border border-indigo-700 text-indigo-300 hover:bg-indigo-900 hover:text-white transition text-center truncate" title="Call for Papers - Academic Journal">
+                                📄 Call for Papers
+                            </button>
+                            <button type="button" onclick="loadTemplate('invitation')" class="px-2 py-1.5 rounded text-[11px] font-medium bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white transition text-center truncate" title="Research Invitation / Editorial Board">
+                                ✉️ Research Invite
+                            </button>
+                            <button type="button" onclick="loadTemplate('reminder')" class="px-2 py-1.5 rounded text-[11px] font-medium bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white transition text-center truncate" title="CFP Submission Deadline Reminder">
+                                ⏰ CFP Deadline
+                            </button>
                         </div>
                         <textarea id="body_template" rows="5" required placeholder="Dear Author,&#10;&#10;We cordially invite your manuscript submission...&#10;&#10;Best regards,&#10;Editorial Team" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none font-mono"></textarea>
                     </div>
@@ -244,31 +267,126 @@
             }
         });
 
+        let latestSystemData = null;
+        let countdownSeconds = null;
+
+        function loadTemplate(type) {
+            const subjectEl = document.getElementById('subject');
+            const bodyEl = document.getElementById('body_template');
+            const noticeEl = document.getElementById('templateNotice');
+
+            if (type === 'cfp') {
+                subjectEl.value = 'Call for Papers: International Journal of Scientific Research (IJSR) - Upcoming Issue';
+                bodyEl.value = 'Dear @name,\n\nWe cordially invite your manuscript submission to the upcoming issue of the International Journal of Scientific Research (IJSR).\n\nHighlights:\n- Rapid peer review and publication workflow\n- Indexed across leading scholarly citation directories\n- Global readership and open access dissemination\n\nYou may submit your manuscript directly by replying to this email with your document attached or by visiting our submission portal.\n\nBest regards,\nEditorial Team\nWorldwide Journals';
+            } else if (type === 'invitation') {
+                subjectEl.value = 'Research Invitation: Contributing to Our Scholarly Editorial Collection';
+                bodyEl.value = 'Dear Colleague,\n\nIn recognition of your distinguished research contributions in your domain, our editorial board invites you to submit an original research paper or review article for our forthcoming volume.\n\nAll submissions undergo double-blind peer review to maintain the highest academic standards.\n\nPlease let us know if you would be interested in submitting your work for this volume.\n\nWarm regards,\nEditorial Committee\nWorldwide Journals';
+            } else if (type === 'reminder') {
+                subjectEl.value = 'Reminder: Manuscript Submission Window Closing Soon - IJSR';
+                bodyEl.value = 'Dear @name,\n\nThis is a gentle reminder regarding the submission deadline for the upcoming edition of IJSR.\n\nIf your manuscript is finalized, please submit it for editorial review. If you require a brief extension, reply directly to this email.\n\nWarm regards,\nEditorial Office\nWorldwide Journals';
+            }
+
+            if (noticeEl) {
+                noticeEl.classList.remove('hidden');
+                setTimeout(() => noticeEl.classList.add('hidden'), 2500);
+            }
+        }
+
+        // Auto-extract Google Sheet ID on input or paste
+        function extractSheetId(str) {
+            if (!str) return null;
+            const match = str.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/i) || str.match(/\/d\/([a-zA-Z0-9_-]+)/i);
+            if (match && match[1]) return match[1];
+            if (/^[a-zA-Z0-9_-]{25,}$/.test(str.trim())) return str.trim();
+            return null;
+        }
+
+        const urlInput = document.getElementById('spreadsheet_url');
+        const titleInput = document.getElementById('spreadsheet_title');
+        const badgeEl = document.getElementById('sheetIdBadge');
+        const helperEl = document.getElementById('sheetHelperText');
+
+        function onSheetUrlChanged() {
+            const raw = urlInput.value.trim();
+            const sheetId = extractSheetId(raw);
+            if (sheetId) {
+                badgeEl.textContent = `ID: ${sheetId.slice(0, 6)}...${sheetId.slice(-4)}`;
+                badgeEl.title = `Extracted Sheet ID: ${sheetId}`;
+                badgeEl.classList.remove('hidden');
+                helperEl.innerHTML = `<span class="text-emerald-400 font-medium">✓ Sheet ID Extracted:</span> <code class="bg-slate-900 px-1.5 py-0.5 rounded text-[10px] text-emerald-300 font-mono">${sheetId}</code> <span class="text-slate-500">(Drive Picker searches directly by ID)</span>`;
+                
+                // Canonicalize URL
+                if (raw.includes('spreadsheets/d/')) {
+                    urlInput.value = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+                }
+            } else {
+                badgeEl.classList.add('hidden');
+                helperEl.textContent = 'Paste any Google Sheet URL; Sheet ID is extracted automatically for direct Drive search.';
+            }
+        }
+
+        if (urlInput) {
+            urlInput.addEventListener('input', onSheetUrlChanged);
+            urlInput.addEventListener('paste', () => setTimeout(onSheetUrlChanged, 50));
+        }
+
+        if (titleInput) {
+            titleInput.addEventListener('paste', () => {
+                setTimeout(() => {
+                    const sheetId = extractSheetId(titleInput.value);
+                    if (sheetId && titleInput.value.includes('http')) {
+                        titleInput.value = sheetId;
+                    }
+                }, 50);
+            });
+        }
+
+        // Live 1-second countdown ticker for scheduler
+        setInterval(() => {
+            if (countdownSeconds !== null && countdownSeconds > 0 && isSchedulerActive) {
+                countdownSeconds--;
+                const countdownText = `in ${countdownSeconds}s`;
+                const schedCountdownEl = document.getElementById('healthSchedCountdown');
+                if (schedCountdownEl) schedCountdownEl.textContent = countdownText;
+            }
+        }, 1000);
+
         async function fetchSystemStatus() {
             try {
                 const res = await fetch('/api/system/status');
                 if (!res.ok) return;
                 const data = await res.json();
+                latestSystemData = data;
                 
                 // Engine
                 document.getElementById('statEngine').textContent = data.engine || 'ONLINE';
                 document.getElementById('statEngine').className = 'font-bold text-emerald-400';
 
-                // DB Status
+                // DB Status & Latency
                 const dbEl = document.getElementById('statDb');
+                const dbLatencyEl = document.getElementById('statDbLatency');
                 if (data.database === 'CONNECTED') {
                     dbEl.textContent = 'CONNECTED';
                     dbEl.className = 'font-semibold text-emerald-400';
+                    if (data.dbLatencyMs !== null) {
+                        dbLatencyEl.textContent = `(${data.dbLatencyMs}ms)`;
+                        dbLatencyEl.className = 'text-[10px] text-emerald-400/80 font-mono inline';
+                    }
                 } else {
                     dbEl.textContent = data.database;
                     dbEl.className = 'font-semibold text-rose-400';
+                    dbLatencyEl.classList.add('hidden');
                 }
 
-                // Scheduler Status
+                // Scheduler Status & Countdown
                 const schedEl = document.getElementById('statScheduler');
                 const btnToggle = document.getElementById('btnToggleScheduler');
                 isSchedulerActive = data.scheduler?.active ?? true;
                 const isProcessing = data.scheduler?.isProcessing;
+
+                if (data.scheduler?.countdownSeconds !== undefined && data.scheduler?.countdownSeconds !== null) {
+                    countdownSeconds = data.scheduler.countdownSeconds;
+                }
 
                 if (isProcessing) {
                     schedEl.textContent = 'BUSY';
@@ -285,15 +403,107 @@
                     btnToggle.className = 'px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-950/60 border border-emerald-800 text-emerald-300 hover:bg-emerald-900/60';
                 }
 
-                // Outbound Route
+                // Outbound Route & IP
                 const routeEl = document.getElementById('statRoute');
-                routeEl.textContent = data.outboundRoute || 'Direct Broadband';
+                if (data.outboundIp && data.outboundIp !== 'Direct (Broadband)') {
+                    routeEl.textContent = data.outboundIp;
+                    routeEl.title = `Outbound IP: ${data.outboundIp} (${data.outboundRoute || 'Direct'})`;
+                } else {
+                    routeEl.textContent = data.outboundRoute || 'Direct Home IP';
+                }
 
             } catch (err) {
                 console.error('Status fetch error:', err);
                 document.getElementById('statEngine').textContent = 'OFFLINE';
                 document.getElementById('statEngine').className = 'font-bold text-rose-500';
             }
+        }
+
+        function openHealthModal() {
+            if (!latestSystemData) {
+                fetchSystemStatus();
+            }
+            const d = latestSystemData || {};
+
+            // Latency & DB
+            const dbLatencyEl = document.getElementById('healthDbLatency');
+            const dbStatusEl = document.getElementById('healthDbStatus');
+            if (d.dbLatencyMs !== null && d.dbLatencyMs !== undefined) {
+                dbLatencyEl.textContent = `${d.dbLatencyMs} ms`;
+                dbLatencyEl.className = d.dbLatencyMs < 100 ? 'text-base font-bold font-mono text-emerald-400' : d.dbLatencyMs < 300 ? 'text-base font-bold font-mono text-amber-400' : 'text-base font-bold font-mono text-rose-400';
+            } else {
+                dbLatencyEl.textContent = '--';
+            }
+            dbStatusEl.textContent = d.database === 'CONNECTED' ? 'CONNECTED' : (d.database || 'DISCONNECTED');
+            dbStatusEl.className = d.database === 'CONNECTED' ? 'text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 font-semibold' : 'text-[10px] px-1.5 py-0.5 rounded bg-rose-950/80 text-rose-300 font-semibold';
+
+            // Node Runtime & Environment
+            document.getElementById('healthNodeVer').textContent = d.nodeVersion || 'v20+';
+            document.getElementById('healthPlatform').textContent = `${d.platform || 'win32'} (${d.environment || 'local'})`;
+
+            // Scheduler Countdown & Next Run
+            const schedCountdownEl = document.getElementById('healthSchedCountdown');
+            const schedNextRunEl = document.getElementById('healthSchedNextRun');
+            if (d.scheduler?.active) {
+                const remaining = countdownSeconds !== null ? countdownSeconds : (d.scheduler.countdownSeconds || 60);
+                schedCountdownEl.textContent = `in ${remaining}s`;
+                if (d.scheduler.nextRun) {
+                    const time = new Date(d.scheduler.nextRun).toLocaleTimeString();
+                    schedNextRunEl.textContent = `Next tick: ${time}`;
+                } else {
+                    schedNextRunEl.textContent = 'Polls every 1 min';
+                }
+            } else {
+                schedCountdownEl.textContent = 'PAUSED';
+                schedCountdownEl.className = 'font-mono text-base font-bold text-amber-400';
+                schedNextRunEl.textContent = 'Scheduler paused';
+            }
+
+            // Outbound IP & Route
+            document.getElementById('healthOutboundIp').textContent = d.outboundIp || 'Detecting...';
+            document.getElementById('healthOutboundRoute').textContent = d.outboundRoute || 'Resident IP Safe';
+
+            // System Telemetry
+            document.getElementById('healthUptime').textContent = d.uptimeSeconds ? `${Math.floor(d.uptimeSeconds / 60)}m ${d.uptimeSeconds % 60}s` : 'N/A';
+            document.getElementById('healthMemory').textContent = d.memoryUsageMB ? `${d.memoryUsageMB} MB` : 'N/A';
+            document.getElementById('healthPendingCount').textContent = d.counts?.pending ?? 0;
+            document.getElementById('healthRunningCount').textContent = d.counts?.running ?? 0;
+
+            // Active Chrome Profiles List
+            const profilesList = document.getElementById('healthProfilesList');
+            const profiles = d.activeProfiles || [];
+            if (profiles.length === 0) {
+                profilesList.innerHTML = '<div class="p-3 text-center text-slate-500 text-xs bg-slate-900 rounded-lg">No Chrome profile folders detected yet.</div>';
+            } else {
+                profilesList.innerHTML = profiles.map(p => `
+                    <div class="flex items-center justify-between p-2.5 bg-slate-900/90 rounded-lg border border-slate-800 text-xs hover:border-slate-700 transition">
+                        <div class="space-y-0.5">
+                            <div class="font-medium text-white flex items-center gap-1.5">
+                                <span>${escapeHtml(p.email || p.displayName || 'Default Profile')}</span>
+                                ${p.isLocked 
+                                    ? '<span class="px-1.5 py-0.2 rounded text-[9px] bg-blue-950 text-blue-300 border border-blue-800 font-semibold animate-pulse">🔒 In Use</span>' 
+                                    : '<span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-800 font-semibold">✓ Idle</span>'}
+                            </div>
+                            <div class="text-[10px] text-slate-400 font-mono">
+                                Folder: <span class="text-slate-300">${escapeHtml(p.folder)}</span> &bull; 
+                                Disk: <span class="${p.existsOnDisk ? 'text-emerald-400' : 'text-rose-400'}">${p.existsOnDisk ? 'Ready' : 'Missing'}</span>
+                                ${p.dailyQuota ? `&bull; Quota: <span class="text-slate-300">${p.sentToday || 0}/${p.dailyQuota}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-semibold border ${p.status === 'READY' ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800' : 'bg-slate-800 text-slate-300 border-slate-700'}">
+                                ${p.status || 'READY'}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('healthModal').classList.remove('hidden');
+        }
+
+        function closeHealthModal() {
+            document.getElementById('healthModal').classList.add('hidden');
         }
 
         async function toggleScheduler() {
@@ -359,6 +569,85 @@
             </div>
             <div class="flex justify-end">
                 <button onclick="closeErrorModal()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Health Check Diagnostics Modal -->
+    <div id="healthModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-slate-700/80 pb-4">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <div>
+                        <h3 class="text-base font-bold text-white">System Diagnostics & Health Check</h3>
+                        <p class="text-[11px] text-slate-400">Live runtime environment & Google dispatch telemetry</p>
+                    </div>
+                </div>
+                <button onclick="closeHealthModal()" class="text-slate-400 hover:text-white text-xl leading-none px-2 py-1 rounded hover:bg-slate-700 transition">&times;</button>
+            </div>
+            
+            <!-- 4 Diagnostics Metric Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <!-- DB Latency -->
+                <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                    <div class="text-slate-400 text-[11px]">Database Latency</div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span id="healthDbLatency" class="text-base font-bold font-mono text-emerald-400">--</span>
+                        <span id="healthDbStatus" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/80 text-emerald-300 font-semibold">OK</span>
+                    </div>
+                    <div class="text-[10px] text-slate-500">Supabase Pooler</div>
+                </div>
+
+                <!-- Node Version -->
+                <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                    <div class="text-slate-400 text-[11px]">Node.js Runtime</div>
+                    <div class="font-mono text-base font-bold text-slate-200" id="healthNodeVer">--</div>
+                    <div class="text-[10px] text-slate-500 truncate" id="healthPlatform">win32 (Windows)</div>
+                </div>
+
+                <!-- Scheduler Countdown -->
+                <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                    <div class="text-slate-400 text-[11px]">Scheduler Next Run</div>
+                    <div class="font-mono text-base font-bold text-indigo-400" id="healthSchedCountdown">--</div>
+                    <div class="text-[10px] text-slate-500 truncate" id="healthSchedNextRun">Cron: * * * * *</div>
+                </div>
+
+                <!-- Outbound IP -->
+                <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                    <div class="text-slate-400 text-[11px]">Outbound IP</div>
+                    <div class="font-mono text-xs font-bold text-emerald-300 truncate" id="healthOutboundIp">--</div>
+                    <div class="text-[10px] text-emerald-500 font-medium" id="healthOutboundRoute">Resident IP Safe</div>
+                </div>
+            </div>
+
+            <!-- Active Chrome Profiles Section -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-slate-200">Active Chrome Profiles</span>
+                    <span class="text-[10px] text-slate-400">Isolated UserData Directories</span>
+                </div>
+                <div id="healthProfilesList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <!-- Profile cards dynamically injected -->
+                </div>
+            </div>
+
+            <!-- Bottom System Info Bar -->
+            <div class="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-[11px] text-slate-400">
+                <div class="flex items-center gap-3">
+                    <span>Uptime: <strong class="text-slate-200 font-mono" id="healthUptime">--</strong></span>
+                    <span>Memory: <strong class="text-slate-200 font-mono" id="healthMemory">--</strong></span>
+                    <span>Queue: <strong class="text-amber-400" id="healthPendingCount">0</strong> pend / <strong class="text-blue-400" id="healthRunningCount">0</strong> run</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="fetchSystemStatus(); openHealthModal();" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded text-xs transition">
+                        Refresh
+                    </button>
+                    <button onclick="closeHealthModal()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded text-xs transition">
+                        Done
+                    </button>
+                </div>
             </div>
         </div>
     </div>

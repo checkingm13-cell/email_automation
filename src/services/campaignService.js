@@ -6,9 +6,11 @@ class CampaignService {
      * Requires subject, body_template, scheduled_at, and at least one of spreadsheet_title or spreadsheet_url
      */
     static async create(data) {
-        const {
+        let {
             spreadsheet_title,
             spreadsheet_url,
+            google_sheet_id,
+            campaign_name,
             recipient_column = 'email',
             subject,
             body_template,
@@ -16,6 +18,29 @@ class CampaignService {
             sender_email,
             chrome_profile
         } = data;
+
+        // Backward compatibility: If google_sheet_id is passed, lookup google_sheets table
+        if (google_sheet_id && (!spreadsheet_title && !spreadsheet_url)) {
+            try {
+                const [sheetRows] = await db.query('SELECT * FROM google_sheets WHERE id = ?', [google_sheet_id]);
+                if (sheetRows && sheetRows.length > 0) {
+                    spreadsheet_title = sheetRows[0].sheet_name;
+                    spreadsheet_url = `https://docs.google.com/spreadsheets/d/${sheetRows[0].spreadsheet_id}/edit`;
+                }
+            } catch (_) {}
+        }
+
+        if (!subject && campaign_name) {
+            subject = campaign_name;
+        }
+
+        if (!body_template) {
+            body_template = 'Dear @name,\n\nWe cordially invite you to submit your research manuscript.\n\nBest regards,\nEditorial Team';
+        }
+
+        if (!scheduled_at) {
+            scheduled_at = new Date().toISOString();
+        }
 
         if (!spreadsheet_title && !spreadsheet_url) {
             throw new Error('Either spreadsheet_title or spreadsheet_url must be provided.');

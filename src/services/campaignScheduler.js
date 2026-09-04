@@ -45,9 +45,14 @@ class CampaignScheduler {
      * Returns current scheduler state
      */
     getStatus() {
+        const now = new Date();
+        const secondsRemaining = 60 - now.getSeconds();
+        const nextRunTime = new Date(Math.ceil((now.getTime() + 1000) / 60000) * 60000);
         return {
             active: !!this.cronJob,
-            isProcessing: this.isProcessing
+            isProcessing: this.isProcessing,
+            countdownSeconds: this.cronJob ? secondsRemaining : null,
+            nextRun: this.cronJob ? nextRunTime.toISOString() : null
         };
     }
 
