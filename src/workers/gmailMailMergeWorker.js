@@ -45,25 +45,22 @@ class GmailMailMergeWorker {
         try {
             console.log(`[Campaign #${campaignId}] 🌐 Launching browser context from ${userDataDir}...`);
 
-            context = await chromium.launchPersistentContext(userDataDir, {
-                headless: false, // Visible for user inspection and Google anti-bot
+            const proxyConfig = process.env.PROXY_SERVER ? { server: process.env.PROXY_SERVER } : undefined;
+            const launchOpts = {
+                headless: false,
                 channel: 'chrome',
+                proxy: proxyConfig,
                 args: [
                     '--start-maximized',
                     '--no-sandbox',
                     '--disable-blink-features=AutomationControlled'
                 ],
                 viewport: null
-            }).catch(async () => {
-                return await chromium.launchPersistentContext(userDataDir, {
-                    headless: false,
-                    args: [
-                        '--start-maximized',
-                        '--no-sandbox',
-                        '--disable-blink-features=AutomationControlled'
-                    ],
-                    viewport: null
-                });
+            };
+
+            context = await chromium.launchPersistentContext(userDataDir, launchOpts).catch(async () => {
+                delete launchOpts.channel;
+                return await chromium.launchPersistentContext(userDataDir, launchOpts);
             });
 
             page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();

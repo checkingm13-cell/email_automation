@@ -7,6 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(require('path').join(__dirname, '../public')));
 
 // Health Check Route
 app.get('/api/health', (req, res) => {

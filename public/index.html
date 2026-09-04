@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail Native Mail Merge Operations</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-6xl mx-auto space-y-6">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <span class="inline-block w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Gmail Native Mail Merge Console
+                </h1>
+                <p class="text-xs text-slate-400 mt-1">Zero-cost production dispatch portal &bull; Resident IP safe</p>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+                <span class="px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">Port: 3000</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-950/60 border border-emerald-700/50 text-emerald-300" id="liveIndicator">Auto-refresh (5s)</span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Form: Create Campaign -->
+            <section class="lg:col-span-1 bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl">
+                <h2 class="text-base font-semibold text-white mb-4 flex items-center justify-between">
+                    <span>Queue Campaign</span>
+                    <span class="text-xs text-slate-400 font-normal">Native Google UI</span>
+                </h2>
+                <form id="campaignForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Sender Profile</label>
+                        <select id="sender_email" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+                            <option value="editor@worldwidejournals.co.in">editor@worldwidejournals.co.in (Profile: worldwidejournals)</option>
+                            <option value="editorial@researchworldwidejournals.com">editorial@researchworldwidejournals.com (Profile: researchworldwide)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Google Sheet URL</label>
+                        <input type="url" id="spreadsheet_url" required placeholder="https://docs.google.com/spreadsheets/d/.../edit" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Sheet Title (Optional Filter)</label>
+                        <input type="text" id="spreadsheet_title" placeholder="e.g. 03-09-26 001" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Subject</label>
+                        <input type="text" id="subject" required placeholder="Invitation: Submit Research Paper to IJSR" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-medium text-slate-300">Body Template</label>
+                            <span class="text-[10px] text-slate-400">Tokens: @name, @email</span>
+                        </div>
+                        <textarea id="body_template" rows="5" required placeholder="Dear Author,&#10;&#10;We cordially invite your manuscript submission...&#10;&#10;Best regards,&#10;Editorial Team" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none font-mono"></textarea>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg text-xs transition duration-150 flex items-center justify-center gap-2">
+                        Queue Campaign
+                    </button>
+                    <p id="formStatus" class="text-xs text-center hidden"></p>
+                </form>
+            </section>
+
+            <!-- Table: Live Monitor -->
+            <section class="lg:col-span-2 bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-semibold text-white">Campaign Dispatches</h2>
+                    <button onclick="fetchCampaigns()" class="text-xs text-slate-400 hover:text-white px-2 py-1 bg-slate-900 border border-slate-700 rounded">
+                        Refresh
+                    </button>
+                </div>
+                <div class="overflow-x-auto flex-1">
+                    <table class="w-full text-left text-xs">
+                        <thead class="text-[11px] text-slate-400 uppercase bg-slate-900/60 border-b border-slate-700">
+                            <tr>
+                                <th class="py-2.5 px-3">ID</th>
+                                <th class="py-2.5 px-3">Subject / Sheet</th>
+                                <th class="py-2.5 px-3">Sender</th>
+                                <th class="py-2.5 px-3">Status</th>
+                                <th class="py-2.5 px-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaignsTbody" class="divide-y divide-slate-700/50 text-slate-300">
+                            <tr>
+                                <td colspan="5" class="py-6 text-center text-slate-500">Loading campaigns...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const statusColors = {
+            'PENDING': 'bg-amber-950/60 text-amber-300 border-amber-800/60',
+            'RUNNING': 'bg-blue-950/60 text-blue-300 border-blue-800/60 animate-pulse',
+            'COMPLETED': 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60',
+            'FAILED': 'bg-rose-950/60 text-rose-300 border-rose-800/60',
+            'CANCELLED': 'bg-slate-800 text-slate-400 border-slate-700'
+        };
+
+        async function fetchCampaigns() {
+            try {
+                const res = await fetch('/api/campaigns');
+                const json = await res.json();
+                const list = json.data || [];
+                const tbody = document.getElementById('campaignsTbody');
+                if (list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-500">No campaigns recorded yet.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = list.map(c => `
+                    <tr class="hover:bg-slate-800/40">
+                        <td class="py-3 px-3 font-mono font-bold text-slate-200">#${c.id}</td>
+                        <td class="py-3 px-3">
+                            <div class="font-medium text-white truncate max-w-xs">${escapeHtml(c.subject)}</div>
+                            <div class="text-[11px] text-slate-400 truncate max-w-xs">${escapeHtml(c.spreadsheet_title || c.spreadsheet_url || 'N/A')}</div>
+                        </td>
+                        <td class="py-3 px-3 text-slate-400 font-mono text-[11px]">${escapeHtml(c.sender_email || 'Default')}</td>
+                        <td class="py-3 px-3">
+                            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${statusColors[c.status] || 'bg-slate-800 text-slate-300 border-slate-700'}">
+                                ${c.status}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-right space-x-1 whitespace-nowrap">
+                            ${c.status === 'PENDING' ? `
+                                <button onclick="triggerNow(${c.id})" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-medium">Trigger</button>
+                                <button onclick="cancelCampaign(${c.id})" class="px-2 py-1 bg-slate-700 hover:bg-rose-600 text-slate-200 rounded text-[11px]">Cancel</button>
+                            ` : c.status === 'RUNNING' ? `
+                                <span class="text-blue-400 text-[11px] font-mono">Running...</span>
+                            ` : `
+                                <button onclick="triggerNow(${c.id})" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded text-[11px]">Re-run</button>
+                            `}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Fetch error:', err);
+            }
+        }
+
+        async function triggerNow(id) {
+            try {
+                const res = await fetch(`/api/campaigns/${id}/trigger`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) alert(data.message || 'Trigger failed');
+                fetchCampaigns();
+            } catch (err) {
+                alert('Network error: ' + err.message);
+            }
+        }
+
+        async function cancelCampaign(id) {
+            if (!confirm(`Cancel campaign #${id}?`)) return;
+            try {
+                const res = await fetch(`/api/campaigns/${id}/cancel`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) alert(data.message || 'Cancel failed');
+                fetchCampaigns();
+            } catch (err) {
+                alert('Network error: ' + err.message);
+            }
+        }
+
+        document.getElementById('campaignForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const status = document.getElementById('formStatus');
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+            status.classList.add('hidden');
+
+            const payload = {
+                sender_email: document.getElementById('sender_email').value,
+                spreadsheet_url: document.getElementById('spreadsheet_url').value.trim(),
+                spreadsheet_title: document.getElementById('spreadsheet_title').value.trim() || null,
+                subject: document.getElementById('subject').value.trim(),
+                body_template: document.getElementById('body_template').value.trim(),
+                scheduled_at: new Date().toISOString()
+            };
+
+            try {
+                const res = await fetch('/api/campaigns', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    status.textContent = 'Campaign queued successfully!';
+                    status.className = 'text-xs text-center text-emerald-400 mt-2';
+                    document.getElementById('campaignForm').reset();
+                    fetchCampaigns();
+                } else {
+                    status.textContent = data.message || 'Submission error';
+                    status.className = 'text-xs text-center text-rose-400 mt-2';
+                }
+            } catch (err) {
+                status.textContent = 'Network error: ' + err.message;
+                status.className = 'text-xs text-center text-rose-400 mt-2';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Queue Campaign';
+                status.classList.remove('hidden');
+            }
+        });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]);
+        }
+
+        fetchCampaigns();
+        setInterval(fetchCampaigns, 5000);
+    </script>
+</body>
+</html>
